@@ -82,7 +82,8 @@
 
         input[type="text"],
         input[type="password"],
-        input[type="number"] {
+        input[type="number"],
+        select {
             width: 100%;
             padding: 0.75rem 1rem;
             border-radius: 8px;
@@ -96,7 +97,8 @@
 
         input[type="text"]:focus,
         input[type="password"]:focus,
-        input[type="number"]:focus {
+        input[type="number"]:focus,
+        select:focus {
             outline: none;
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -309,6 +311,13 @@
                     <button type="button" class="btn-secondary" id="clearBtn" style="margin-top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Clear Saved Credentials</button>
                 </div>
             </div>
+
+            <div id="filterContainer" style="display: none; margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <label for="attendeeFilter">Filter by Attendee</label>
+                <select id="attendeeFilter">
+                    <option value="All">All Attendees</option>
+                </select>
+            </div>
         </form>
 
         <div id="statusMessage" class="status-message"></div>
@@ -358,6 +367,8 @@
         const fetchBtn = document.getElementById('fetchBtn');
         const clearBtn = document.getElementById('clearBtn');
         const clearBtnContainer = document.getElementById('clearBtnContainer');
+        const attendeeFilter = document.getElementById('attendeeFilter');
+        const filterContainer = document.getElementById('filterContainer');
         const statusMessage = document.getElementById('statusMessage');
         const resultsContainer = document.getElementById('resultsContainer');
         const tbody = document.querySelector('#eventsTable tbody');
@@ -408,6 +419,7 @@
             passwordInput.value = '';
             daysInput.value = '10';
             clearBtnContainer.style.display = 'none';
+            filterContainer.style.display = 'none';
             resultsContainer.style.display = 'none';
             summaryCard.style.display = 'none';
             urlCard.style.display = 'none';
@@ -497,6 +509,7 @@
             resultsContainer.style.display = 'none';
             summaryCard.style.display = 'none';
             urlCard.style.display = 'none';
+            filterContainer.style.display = 'none';
             lastUrls = [];
             fetchBtn.disabled = true;
 
@@ -522,6 +535,7 @@
                 }
 
                 renderTable(data.events);
+                updateAttendeeDropdown(data.events);
                 showStatus('', '');
             } catch (error) {
                 showStatus('error', error.message);
@@ -529,6 +543,56 @@
                 fetchBtn.disabled = false;
             }
         }
+
+        function updateAttendeeDropdown(events) {
+            attendeeFilter.innerHTML = '<option value="All">All Attendees</option>';
+            if (!events || events.length === 0) {
+                filterContainer.style.display = 'none';
+                return;
+            }
+
+            const uniqueAttendees = new Set();
+            events.forEach(event => {
+                if (event.attendees) {
+                    event.attendees.forEach(a => {
+                        uniqueAttendees.add(getAttendeeName(a));
+                    });
+                }
+            });
+
+            if (uniqueAttendees.size > 0) {
+                const sortedAttendees = Array.from(uniqueAttendees).sort((a, b) => a.localeCompare(b));
+                sortedAttendees.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    attendeeFilter.appendChild(option);
+                });
+                filterContainer.style.display = 'block';
+                attendeeFilter.value = 'All'; // Reset on new fetch
+            } else {
+                filterContainer.style.display = 'none';
+            }
+        }
+
+        attendeeFilter.addEventListener('change', (e) => {
+            const selected = e.target.value;
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                if (selected === 'All') {
+                    row.style.display = '';
+                } else {
+                    const tags = row.querySelectorAll('.attendee-tag');
+                    let found = false;
+                    tags.forEach(tag => {
+                        if (tag.textContent === selected) {
+                            found = true;
+                        }
+                    });
+                    row.style.display = found ? '' : 'none';
+                }
+            });
+        });
 
         function renderTable(events) {
             tbody.innerHTML = '';
