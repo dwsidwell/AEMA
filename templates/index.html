@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IamResponding Event Viewer</title>
+    <!-- Use Inter font for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: var(--surface-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-main);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        .status-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        .status-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: block;
+        }
+
+        .status-loading {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--primary-color);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 8px;
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .attendee-tag {
+            display: inline-block;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin: 0.2rem;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .no-attendees {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .flex-row .form-group {
+            flex: 1;
+        }
+
+        @media (max-width: 600px) {
+            .flex-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="position: relative;">
+        <a href="/logout" style="position: absolute; top: 0; right: 0; color: var(--text-muted); text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border-color); border-radius: 6px; transition: all 0.2s ease;" onmouseover="this.style.color='var(--text-main)'; this.style.backgroundColor='rgba(255,255,255,0.05)';" onmouseout="this.style.color='var(--text-muted)'; this.style.backgroundColor='transparent';">Logout</a>
+        <h1>Event Viewer</h1>
+        <p class="subtitle">Securely fetching your IamResponding events</p>
+    </header>
+
+    <div class="card" id="loginCard">
+        <form id="credentialsForm">
+            <div class="flex-row">
+                <div class="form-group">
+                    <label for="agency">Agency</label>
+                    <input type="text" id="agency" required placeholder="Enter Agency">
+                </div>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required placeholder="Enter Username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required placeholder="Enter Password">
+                </div>
+                <div class="form-group">
+                    <label for="days">Days to Fetch</label>
+                    <input type="number" id="days" value="10" min="1" max="365" required>
+                </div>
+            </div>
+
+            <div class="flex-row" style="margin-top: 0.5rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <button type="submit" class="btn-primary" id="fetchBtn">Fetch Events</button>
+                </div>
+                <div class="form-group" id="clearBtnContainer" style="display: none; margin-bottom: 0;">
+                    <button type="button" class="btn-secondary" id="clearBtn" style="margin-top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Clear Saved Credentials</button>
+                </div>
+            </div>
+        </form>
+
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+
+    <div style="text-align: right; margin-bottom: 1rem;">
+        <label style="display: inline-flex; align-items: center; cursor: pointer; color: var(--text-muted); font-size: 0.85rem;">
+            <input type="checkbox" id="debugFlag" style="margin-right: 0.5rem;"> Show API URLs
+        </label>
+    </div>
+
+    <div class="card" id="urlCard" style="display: none; margin-bottom: 2rem; padding: 1.5rem;">
+        <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--text-muted);">API URLs Called</h3>
+        <pre id="urlContent" style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-size: 0.8rem; overflow-x: auto; color: #a78bfa; margin-bottom: 0; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+    </div>
+
+    <div class="table-container" id="resultsContainer">
+        <table id="eventsTable">
+            <thead>
+                <tr>
+                    <th width="20%">Event Start</th>
+                    <th width="35%">Subject</th>
+                    <th width="45%">Attendees (Response = 1)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" id="summaryCard" style="display: none; margin-top: 2rem;">
+        <h3 style="margin-top: 0; margin-bottom: 1.5rem; color: var(--text-main);">Attendee Summary</h3>
+        <div id="summaryContent" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+            <!-- Summary blocks will be populated here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('credentialsForm');
+        const agencyInput = document.getElementById('agency');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const daysInput = document.getElementById('days');
+        const fetchBtn = document.getElementById('fetchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const clearBtnContainer = document.getElementById('clearBtnContainer');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const tbody = document.querySelector('#eventsTable tbody');
+        const summaryCard = document.getElementById('summaryCard');
+        const summaryContent = document.getElementById('summaryContent');
+        const debugFlag = document.getElementById('debugFlag');
+        const urlCard = document.getElementById('urlCard');
+        const urlContent = document.getElementById('urlContent');
+
+        let lastUrls = [];
+
+        debugFlag.addEventListener('change', () => {
+            if (debugFlag.checked && lastUrls.length > 0) {
+                urlContent.textContent = lastUrls.join('\n');
+                urlCard.style.display = 'block';
+            } else {
+                urlCard.style.display = 'none';
+            }
+        });
+
+        // Load credentials from local storage
+        const savedAgency = localStorage.getItem('iar_agency');
+        const savedUsername = localStorage.getItem('iar_username');
+        const savedPassword = localStorage.getItem('iar_password');
+        const savedDays = localStorage.getItem('iar_days');
+
+        if (savedDays) {
+            daysInput.value = savedDays;
+        }
+
+        if (savedAgency && savedUsername && savedPassword) {
+            agencyInput.value = savedAgency;
+            usernameInput.value = savedUsername;
+            passwordInput.value = savedPassword;
+            clearBtnContainer.style.display = 'block';
+            
+            // Automatically fetch if credentials are saved
+            fetchEvents(savedAgency, savedUsername, savedPassword, daysInput.value);
+        }
+
+        clearBtn.addEventListener('click', () => {
+            localStorage.removeItem('iar_agency');
+            localStorage.removeItem('iar_username');
+            localStorage.removeItem('iar_password');
+            localStorage.removeItem('iar_days');
+            agencyInput.value = '';
+            usernameInput.value = '';
+            passwordInput.value = '';
+            daysInput.value = '10';
+            clearBtnContainer.style.display = 'none';
+            resultsContainer.style.display = 'none';
+            summaryCard.style.display = 'none';
+            urlCard.style.display = 'none';
+            lastUrls = [];
+            showStatus('', '');
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const agency = agencyInput.value.trim();
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            const days = daysInput.value;
+            
+            // Save to local storage automatically
+            localStorage.setItem('iar_agency', agency);
+            localStorage.setItem('iar_username', username);
+            localStorage.setItem('iar_password', password);
+            localStorage.setItem('iar_days', days);
+            clearBtnContainer.style.display = 'block';
+
+            fetchEvents(agency, username, password, days);
+        });
+
+        function showStatus(type, message) {
+            statusMessage.className = 'status-message';
+            if (!type) {
+                statusMessage.style.display = 'none';
+                return;
+            }
+            
+            statusMessage.classList.add(`status-${type}`);
+            
+            if (type === 'loading') {
+                statusMessage.innerHTML = `<div class="spinner"></div> ${message}`;
+            } else {
+                statusMessage.textContent = message;
+            }
+            
+            statusMessage.style.display = type === 'loading' ? 'flex' : 'block';
+        }
+
+        // Helper to format date string
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                const d = new Date(dateString);
+                return d.toLocaleString(undefined, { 
+                    weekday: 'short', 
+                    year: 'numeric',
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: 'numeric', 
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        // Helper to get attendee name
+        function getAttendeeName(attendee) {
+            // The JSON contains a nested 'member' object
+            if (attendee.member) {
+                if (attendee.member.name && attendee.member.lastName) {
+                    return `${attendee.member.name} ${attendee.member.lastName}`;
+                }
+            }
+            
+            // Fallbacks just in case
+            if (attendee.name && attendee.lastName) {
+                return `${attendee.name} ${attendee.lastName}`;
+            }
+            if (attendee.firstName && attendee.lastName) {
+                return `${attendee.firstName} ${attendee.lastName}`;
+            }
+            if (attendee.name) {
+                return attendee.name;
+            }
+            
+            // Fallback: Display the actual JSON so we can see exactly what fields exist
+            return JSON.stringify(attendee).replace(/[{"}]/g, '').substring(0, 100);
+        }
+
+        async function fetchEvents(agency, username, password, days) {
+            showStatus('loading', 'Authenticating and fetching events... This may take a moment.');
+            resultsContainer.style.display = 'none';
+            summaryCard.style.display = 'none';
+            urlCard.style.display = 'none';
+            lastUrls = [];
+            fetchBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agency, username, password, days })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch events');
+                }
+
+                if (data.urls) {
+                    lastUrls = data.urls;
+                    if (debugFlag.checked) {
+                        urlContent.textContent = lastUrls.join('\n');
+                        urlCard.style.display = 'block';
+                    }
+                }
+
+                renderTable(data.events);
+                showStatus('', '');
+            } catch (error) {
+                showStatus('error', error.message);
+            } finally {
+                fetchBtn.disabled = false;
+            }
+        }
+
+        function renderTable(events) {
+            tbody.innerHTML = '';
+            summaryCard.style.display = 'none';
+            
+            if (!events || events.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 2rem; color: var(--text-muted);">No events found for the next 60 days.</td></tr>';
+                resultsContainer.style.display = 'block';
+                return;
+            }
+
+            const attendeeCounts = {};
+
+            events.forEach(event => {
+                const tr = document.createElement('tr');
+                
+                // Highlight row if 0 attendees
+                if (!event.attendees || event.attendees.length === 0) {
+                    tr.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    tr.style.borderLeft = '4px solid var(--error-color)';
+                }
+                
+                // Event Start & End
+                const tdStart = document.createElement('td');
+                
+                const startDiv = document.createElement('div');
+                startDiv.style.fontSize = '0.8rem';
+                startDiv.style.whiteSpace = 'nowrap';
+                startDiv.innerHTML = `<strong>Start:</strong> ${formatDate(event.eventStart)}`;
+                tdStart.appendChild(startDiv);
+                
+                if (event.eventEnd) {
+                    const endDiv = document.createElement('div');
+                    endDiv.style.fontSize = '0.8rem';
+                    endDiv.style.whiteSpace = 'nowrap';
+                    endDiv.style.marginTop = '0.3rem';
+                    endDiv.innerHTML = `<strong>End:</strong> ${formatDate(event.eventEnd)}`;
+                    tdStart.appendChild(endDiv);
+                }
+                
+                // Subject
+                const tdSubject = document.createElement('td');
+                const subjectText = document.createElement('strong');
+                subjectText.textContent = event.subject || 'No Subject';
+                tdSubject.appendChild(subjectText);
+                if (event.description) {
+                    const desc = document.createElement('div');
+                    desc.style.fontSize = '0.85rem';
+                    desc.style.color = 'var(--text-muted)';
+                    desc.style.marginTop = '0.5rem';
+                    
+                    if (event.description.length > 100) {
+                        const shortText = event.description.substring(0, 100) + '...';
+                        desc.innerHTML = `<span>${shortText}</span> <a href="#" style="color: var(--primary-color); text-decoration: none; margin-left: 5px;" class="expand-btn">Read more</a>`;
+                        
+                        const expandBtn = desc.querySelector('.expand-btn');
+                        expandBtn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            if (expandBtn.textContent === 'Read more') {
+                                desc.firstElementChild.textContent = event.description;
+                                expandBtn.textContent = ' Show less';
+                            } else {
+                                desc.firstElementChild.textContent = shortText;
+                                expandBtn.textContent = 'Read more';
+                            }
+                        });
+                    } else {
+                        desc.textContent = event.description;
+                    }
+                    tdSubject.appendChild(desc);
+                }
+
+                // Attendees
+                const tdAttendees = document.createElement('td');
+                if (event.attendees && event.attendees.length > 0) {
+                    // Sort attendees alphabetically by name
+                    event.attendees.sort((a, b) => {
+                        const nameA = (a.member && a.member.name) ? a.member.name.toLowerCase() : '';
+                        const nameB = (b.member && b.member.name) ? b.member.name.toLowerCase() : '';
+                        return nameA.localeCompare(nameB);
+                    });
+                    
+                    event.attendees.forEach(a => {
+                        const fullName = getAttendeeName(a);
+                        
+                        // Add to counts for summary
+                        const sortName = (a.member && a.member.name) ? a.member.name : fullName;
+                        if (!attendeeCounts[fullName]) {
+                            attendeeCounts[fullName] = { count: 0, sortName: sortName.toLowerCase() };
+                        }
+                        attendeeCounts[fullName].count++;
+
+                        const span = document.createElement('span');
+                        span.className = 'attendee-tag';
+                        span.textContent = fullName;
+                        // Store the full object in a title attribute for debugging/hovering
+                        span.title = JSON.stringify(a);
+                        tdAttendees.appendChild(span);
+                    });
+                } else {
+                    const none = document.createElement('div');
+                    none.className = 'no-attendees';
+                    none.textContent = 'No attending members';
+                    tdAttendees.appendChild(none);
+                }
+
+                tr.appendChild(tdStart);
+                tr.appendChild(tdSubject);
+                tr.appendChild(tdAttendees);
+                tbody.appendChild(tr);
+            });
+
+            resultsContainer.style.display = 'block';
+            
+            // Render Attendee Summary
+            const summaryKeys = Object.keys(attendeeCounts);
+            if (summaryKeys.length > 0) {
+                summaryContent.innerHTML = '';
+                summaryCard.style.display = 'block';
+                
+                // Sort summary alphabetically by first name
+                summaryKeys.sort((a, b) => attendeeCounts[a].sortName.localeCompare(attendeeCounts[b].sortName));
+                
+                summaryKeys.forEach(name => {
+                    const count = attendeeCounts[name].count;
+                    const div = document.createElement('div');
+                    div.style.padding = '1rem';
+                    div.style.backgroundColor = 'rgba(15, 23, 42, 0.4)';
+                    div.style.borderRadius = '8px';
+                    div.style.border = '1px solid var(--border-color)';
+                    div.style.display = 'flex';
+                    div.style.flexDirection = 'column';
+                    div.innerHTML = `
+                        <strong style="font-size: 1.05rem;">${name}</strong>
+                        <span style="color: var(--primary-color); font-weight: 500; font-size: 0.95rem; margin-top: 0.25rem;">
+                            ${count} event${count > 1 ? 's' : ''}
+                        </span>
+                    `;
+                    summaryContent.appendChild(div);
+                });
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
