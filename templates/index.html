@@ -127,6 +127,28 @@
             transform: translateY(1px);
         }
 
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-success:active {
+            transform: translateY(1px);
+        }
+
         .btn-secondary {
             background-color: transparent;
             border: 1px solid var(--border-color);
@@ -314,9 +336,12 @@
 
             <div id="filterContainer" style="display: none; margin-top: 1.5rem; margin-bottom: 0.5rem;">
                 <label for="attendeeFilter">Filter by Attendee</label>
-                <select id="attendeeFilter">
-                    <option value="All">All Attendees</option>
-                </select>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <select id="attendeeFilter" style="flex: 1;">
+                        <option value="All">All Attendees</option>
+                    </select>
+                    <button type="button" class="btn-success" id="exportBtn" style="white-space: nowrap;">Export to Excel</button>
+                </div>
             </div>
         </form>
 
@@ -377,8 +402,10 @@
         const debugFlag = document.getElementById('debugFlag');
         const urlCard = document.getElementById('urlCard');
         const urlContent = document.getElementById('urlContent');
+        const exportBtn = document.getElementById('exportBtn');
 
         let lastUrls = [];
+        let lastFetchedEvents = [];
 
         debugFlag.addEventListener('change', () => {
             if (debugFlag.checked && lastUrls.length > 0) {
@@ -424,6 +451,7 @@
             summaryCard.style.display = 'none';
             urlCard.style.display = 'none';
             lastUrls = [];
+            lastFetchedEvents = [];
             showStatus('', '');
         });
 
@@ -526,6 +554,8 @@
                     throw new Error(data.error || 'Failed to fetch events');
                 }
 
+                lastFetchedEvents = data.events;
+
                 if (data.urls) {
                     lastUrls = data.urls;
                     if (debugFlag.checked) {
@@ -594,6 +624,137 @@
             });
         });
 
+        function downloadICS(event) {
+            const formatICSDate = (dateStr) => {
+                if (!dateStr) return '';
+                const cleaned = dateStr.replace(/[-:]/g, '').replace(/\..+/, '').replace(/Z$/, '');
+                return cleaned.length >= 15 ? cleaned.substring(0, 15) : cleaned;
+            };
+
+            const start = formatICSDate(event.eventStart);
+            const end = event.eventEnd ? formatICSDate(event.eventEnd) : start;
+            const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            
+            const escapeICS = (str) => {
+                if (!str) return '';
+                return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+            };
+
+            const summary = escapeICS(event.subject || 'Event');
+            const description = escapeICS(event.description || '');
+
+            const icsContent = 
+`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//IamResponding Viewer//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+DTSTAMP:${now}
+DTSTART:${start}
+DTEND:${end}
+SUMMARY:${summary}
+DESCRIPTION:${description}
+END:VEVENT
+END:VCALENDAR`;
+
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            
+            const fileName = `${(event.subject || 'event').replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+            
+            link.setAttribute('download', fileName);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function createGoogleCalendarUrl(event) {
+            const formatGCalDate = (dateStr) => {
+                if (!dateStr) return '';
+                const cleaned = dateStr.replace(/[-:]/g, '').replace(/\..+/, '').replace(/Z$/, '');
+                return cleaned.length >= 15 ? cleaned.substring(0, 15) : cleaned;
+            };
+
+            const start = formatGCalDate(event.eventStart);
+            const end = event.eventEnd ? formatGCalDate(event.eventEnd) : start;
+            
+            const text = encodeURIComponent(event.subject || 'Event');
+            const details = encodeURIComponent(event.description || '');
+            
+            return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}`;
+        }
+
+        exportBtn.addEventListener('click', () => {
+            if (!lastFetchedEvents || lastFetchedEvents.length === 0) return;
+            
+            const selected = attendeeFilter.value;
+            let eventsToExport = lastFetchedEvents;
+            
+            if (selected !== 'All') {
+                eventsToExport = lastFetchedEvents.filter(e => {
+                    return e.attendees && e.attendees.some(a => getAttendeeName(a) === selected);
+                });
+            }
+
+            const escapeCSV = (str) => {
+                if (str == null) return '""';
+                const s = String(str).replace(/"/g, '""');
+                return `"${s}"`;
+            };
+
+            const formatForExport = (dateString) => {
+                if (!dateString) return '';
+                try {
+                    const d = new Date(dateString);
+                    if (isNaN(d.getTime())) return dateString;
+                    return d.toLocaleString(); 
+                } catch (err) {
+                    return dateString;
+                }
+            };
+
+            const headers = ['Event Start', 'Event End', 'Subject', 'Description', 'Attendees'];
+            let csvContent = headers.map(escapeCSV).join(',') + '\n';
+
+            eventsToExport.forEach(e => {
+                const start = formatForExport(e.eventStart);
+                const end = e.eventEnd ? formatForExport(e.eventEnd) : '';
+                const subject = e.subject || '';
+                const desc = e.description || '';
+                
+                let attendeesStr = '';
+                if (e.attendees && e.attendees.length > 0) {
+                    const sorted = [...e.attendees].sort((a, b) => {
+                        const nameA = (a.member && a.member.name) ? a.member.name.toLowerCase() : '';
+                        const nameB = (b.member && b.member.name) ? b.member.name.toLowerCase() : '';
+                        return nameA.localeCompare(nameB);
+                    });
+                    attendeesStr = sorted.map(a => getAttendeeName(a)).join(', ');
+                }
+
+                const row = [start, end, subject, desc, attendeesStr];
+                csvContent += row.map(escapeCSV).join(',') + '\n';
+            });
+
+            // Add BOM so Excel opens UTF-8 properly
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            const fileName = selected === 'All' ? `events_all_${dateStr}.csv` : `events_${selected.replace(/\s+/g, '_')}_${dateStr}.csv`;
+            
+            link.setAttribute('download', fileName);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
         function renderTable(events) {
             tbody.innerHTML = '';
             summaryCard.style.display = 'none';
@@ -632,6 +793,47 @@
                     endDiv.innerHTML = `<strong>End:</strong> ${formatDate(event.eventEnd)}`;
                     tdStart.appendChild(endDiv);
                 }
+
+                const btnContainer = document.createElement('div');
+                btnContainer.style.display = 'flex';
+                btnContainer.style.flexDirection = 'row';
+                btnContainer.style.flexWrap = 'wrap';
+                btnContainer.style.gap = '0.4rem';
+                btnContainer.style.marginTop = '0.75rem';
+
+                const gCalBtn = document.createElement('a');
+                gCalBtn.className = 'btn-secondary';
+                gCalBtn.style.padding = '0.25rem 0.4rem';
+                gCalBtn.style.fontSize = '0.7rem';
+                gCalBtn.style.display = 'inline-flex';
+                gCalBtn.style.alignItems = 'center';
+                gCalBtn.style.gap = '4px';
+                gCalBtn.style.textDecoration = 'none';
+                gCalBtn.style.width = 'fit-content';
+                gCalBtn.target = '_blank';
+                gCalBtn.rel = 'noopener noreferrer';
+                gCalBtn.href = createGoogleCalendarUrl(event);
+                gCalBtn.title = 'Add to Google Calendar';
+                gCalBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Google`;
+
+                const calBtn = document.createElement('button');
+                calBtn.className = 'btn-secondary';
+                calBtn.style.padding = '0.25rem 0.4rem';
+                calBtn.style.fontSize = '0.7rem';
+                calBtn.style.display = 'inline-flex';
+                calBtn.style.alignItems = 'center';
+                calBtn.style.gap = '4px';
+                calBtn.style.width = 'fit-content';
+                calBtn.title = 'Download .ics file';
+                calBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> .ics`;
+                
+                calBtn.addEventListener('click', () => {
+                    downloadICS(event);
+                });
+                
+                btnContainer.appendChild(gCalBtn);
+                btnContainer.appendChild(calBtn);
+                tdStart.appendChild(btnContainer);
                 
                 // Subject
                 const tdSubject = document.createElement('td');
