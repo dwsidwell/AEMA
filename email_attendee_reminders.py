@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 from email.utils import formatdate
 
 # Load environment variables
@@ -30,7 +31,7 @@ CC_EMAILS = ["dwsidwell@gmail.com"]
 # Hardcoded testing filter
 TESTING_LAST_NAMES = ["Sidwell V31", "Schur V22"]
 
-DAYS_TO_PULL = 7
+DAYS_TO_PULL = 10
 
 # Grafana Loki Setup
 logger = logging.getLogger("email_attendees")
@@ -174,25 +175,43 @@ def format_html_email(member, events):
     first_name = member.get('name', '')
     
     html = f"""
+    <!DOCTYPE html>
     <html>
     <head>
+    <meta charset="utf-8">
     <style>
-        body {{ font-family: Arial, sans-serif; color: #333; }}
-        h2 {{ color: #2c3e50; }}
-        table {{ border-collapse: collapse; width: 100%; max-width: 1000px; margin-bottom: 20px; }}
-        th, td {{ border: 1px solid #dddddd; text-align: left; padding: 10px; }}
-        th {{ background-color: #f8f9fa; color: #495057; }}
+        body {{ font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; color: #333333; margin: 0; padding: 20px; }}
+        .wrapper {{ max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }}
+        .header {{ background-color: #1e3a8a; color: #ffffff; padding: 30px; text-align: center; }}
+        .header img {{ max-height: 80px; margin-bottom: 15px; border-radius: 4px; }}
+        .header h2 {{ margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px; }}
+        .content {{ padding: 30px; }}
+        .table-wrapper {{ border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }}
+        table {{ width: 100%; border-collapse: collapse; background-color: #ffffff; }}
+        th {{ background-color: #f8fafc; color: #475569; font-weight: 600; padding: 15px; text-align: left; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #cbd5e1; border-bottom: 2px solid #94a3b8; }}
+        td {{ padding: 15px; border: 1px solid #cbd5e1; vertical-align: top; font-size: 15px; line-height: 1.5; }}
+        .date-badge {{ background-color: #eff6ff; color: #1e40af; padding: 6px 10px; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 13px; white-space: nowrap; margin-bottom: 5px; }}
+        .subject {{ font-weight: 600; color: #0f172a; margin-bottom: 5px; font-size: 16px; }}
+        .desc {{ color: #64748b; font-size: 14px; }}
+        .footer {{ background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }}
     </style>
     </head>
     <body>
-    <h2>Hi {first_name},</h2>
-    <p>Here are the upcoming IamResponding EMA events you are signed up for in the next 7 days:</p>
-    <table>
-        <tr>
-            <th style="width: 25%;">Date & Time</th>
-            <th style="width: 30%;">Subject</th>
-            <th style="width: 45%;">Description</th>
-        </tr>
+    <div class="wrapper">
+        <div class="header">
+            <img src="cid:aema_logo" alt="AEMA Logo">
+            <h2>Upcoming Volunteer Events</h2>
+            <p style="margin: 10px 0 0 0; color: #bfdbfe; font-size: 14px;">Next {DAYS_TO_PULL} Days Overview</p>
+        </div>
+        <div class="content">
+            <p>Hi {first_name},</p>
+            <p>Here are the upcoming IamResponding EMA events you are signed up for in the next {DAYS_TO_PULL} days:</p>
+            <div class="table-wrapper">
+                <table>
+                    <tr>
+                        <th style="width: 25%;">Date & Time</th>
+                        <th style="width: 75%;">Event Details</th>
+                    </tr>
     """
 
     for event in events:
@@ -202,20 +221,39 @@ def format_html_email(member, events):
             dt_utc = datetime.datetime.strptime(start_time[:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=datetime.timezone.utc)
             dt_central = dt_utc.astimezone(ZoneInfo("America/Chicago"))
             formatted_time = dt_central.strftime('%m/%d/%Y %I:%M %p')
+            date_part, time_part = formatted_time.split(' ', 1)
         except ValueError:
-            formatted_time = start_time.replace('T', ' ')
+            date_part = start_time[:10]
+            time_part = start_time[11:16]
+        
+        desc = event.get('description', '')
+        words = desc.split()
+        if len(words) > 50:
+            desc = " ".join(words[:50]) + "..."
+            
+        td_style = "background-color: #ffffff;"
         
         html += f"""
-        <tr>
-            <td style="white-space: nowrap;">{formatted_time}</td>
-            <td>{event.get('subject', '')}</td>
-            <td>{event.get('description', '')}</td>
-        </tr>
+                    <tr>
+                        <td style="{td_style}">
+                            <div class="date-badge">{date_part}</div>
+                            <div style="font-size: 14px; color: #64748b; margin-top: 4px; font-weight: 500;">{time_part}</div>
+                        </td>
+                        <td style="{td_style}">
+                            <div class="subject">{event.get('subject', '')}</div>
+                            <div class="desc">{desc}</div>
+                        </td>
+                    </tr>
         """
 
     html += """
-    </table>
-    <p style="font-size: 12px; color: #7f8c8d;">This is an automated reminder.</p>
+                </table>
+            </div>
+        </div>
+        <div class="footer">
+            This is an automated reminder from the IamResponding Event Viewer.
+        </div>
+    </div>
     </body>
     </html>
     """
@@ -226,15 +264,28 @@ def send_email(to_email, html_content):
         logger.error("Email configuration is missing or incomplete in .env", extra={"tags": {"event_type": "script_telemetry", "action": "email_error"}})
         return False
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = "TEST: EMA events you are signed up for"
+    msg = MIMEMultipart('related')
+    msg['Subject'] = "Upcoming AEMA events you are signed up for"
     msg['From'] = EMAIL_SENDER
     msg['To'] = to_email
     msg['Cc'] = ", ".join(CC_EMAILS)
     msg['Date'] = formatdate(localtime=True)
 
+    msg_alternative = MIMEMultipart('alternative')
+    msg.attach(msg_alternative)
+
     part = MIMEText(html_content, 'html')
-    msg.attach(part)
+    msg_alternative.attach(part)
+    
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'AEMA_Logo.jpg')
+    if os.path.exists(logo_path):
+        with open(logo_path, 'rb') as f:
+            msg_image = MIMEImage(f.read())
+            msg_image.add_header('Content-ID', '<aema_logo>')
+            msg_image.add_header('Content-Disposition', 'inline', filename='AEMA_Logo.jpg')
+            msg.attach(msg_image)
+    else:
+        logger.warning("Logo image not found at %s. Sending without logo.", logo_path)
     
     recipients = [to_email] + CC_EMAILS
 

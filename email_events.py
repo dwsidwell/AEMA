@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 from email.utils import formatdate
 
 # Load environment variables
@@ -154,61 +155,95 @@ def format_html_email(events):
         return "<p>No upcoming events found for the next 15 days.</p>"
 
     html = """
+    <!DOCTYPE html>
     <html>
     <head>
+    <meta charset="utf-8">
     <style>
-        body { font-family: Arial, sans-serif; color: #333; }
-        h2 { color: #2c3e50; }
-        table { border-collapse: collapse; width: 100%; max-width: 1000px; margin-bottom: 20px; }
-        th, td { border: 1px solid #dddddd; text-align: left; padding: 10px; }
-        th { background-color: #f8f9fa; color: #495057; }
-        .zero-attendees { background-color: #ffebee; color: #c62828; font-weight: bold; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; color: #333333; margin: 0; padding: 20px; }
+        .wrapper { max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .header { background-color: #1e3a8a; color: #ffffff; padding: 30px; text-align: center; }
+        .header img { max-height: 80px; margin-bottom: 15px; border-radius: 4px; }
+        .header h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px; }
+        .content { padding: 30px; }
+        .table-wrapper { border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; background-color: #ffffff; }
+        th { background-color: #f8fafc; color: #475569; font-weight: 600; padding: 15px; text-align: left; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #cbd5e1; border-bottom: 2px solid #94a3b8; }
+        td { padding: 15px; border: 1px solid #cbd5e1; vertical-align: top; font-size: 15px; line-height: 1.5; }
+        .attendee-list { margin: 0; padding-left: 20px; color: #334155; }
+        .date-badge { background-color: #eff6ff; color: #1e40af; padding: 6px 10px; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 13px; white-space: nowrap; margin-bottom: 5px; }
+        .subject { font-weight: 600; color: #0f172a; margin-bottom: 5px; font-size: 16px; }
+        .desc { color: #64748b; font-size: 14px; }
+        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
     </style>
     </head>
     <body>
-    <h2>Upcoming IamResponding Events (Next 15 Days)</h2>
-    <table>
-        <tr>
-            <th style="width: 15%;">Date & Time</th>
-            <th style="width: 20%;">Subject</th>
-            <th style="width: 25%;">Description</th>
-            <th style="width: 40%;">Attendees</th>
-        </tr>
+    <div class="wrapper">
+        <div class="header">
+            <img src="cid:aema_logo" alt="AEMA Logo">
+            <h2>Upcoming Volunteer Events</h2>
+            <p style="margin: 10px 0 0 0; color: #bfdbfe; font-size: 14px;">Next 15 Days Overview</p>
+        </div>
+        <div class="content">
+            <div class="table-wrapper">
+                <table>
+                    <tr>
+                        <th style="width: 20%;">Date & Time</th>
+                        <th style="width: 45%;">Event Details</th>
+                        <th style="width: 35%;">Attendees</th>
+                    </tr>
     """
 
-    for event in events:
+    for i, event in enumerate(events):
         start_time = event.get('eventStart', '')
         try:
             # Parse as UTC, then convert to Central Time
             dt_utc = datetime.datetime.strptime(start_time[:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=datetime.timezone.utc)
             dt_central = dt_utc.astimezone(ZoneInfo("America/Chicago"))
             formatted_time = dt_central.strftime('%m/%d/%Y %I:%M %p')
+            date_part, time_part = formatted_time.split(' ', 1)
         except ValueError:
-            formatted_time = start_time.replace('T', ' ')
+            date_part = start_time[:10]
+            time_part = start_time[11:16]
 
         attendees = event.get('attendees', [])
         attendee_count = len(attendees)
         
         if attendee_count > 0:
             attendee_list_items = "".join([f"<li>{a.get('member', {}).get('name', '').strip()} {a.get('member', {}).get('lastName', '').strip()}</li>" for a in attendees])
-            attendees_display = f"<ul style='margin: 0; padding-left: 20px;'>{attendee_list_items}</ul>"
+            attendees_display = f"<ul class='attendee-list'>{attendee_list_items}</ul>"
+            td_style = "background-color: #ffffff;"
         else:
-            attendees_display = "None"
+            attendees_display = "<em>None</em>"
+            td_style = "background-color: #fee2e2; color: #991b1b; border-color: #fca5a5;"
         
-        row_class = "zero-attendees" if attendee_count == 0 else ""
-        
+        desc = event.get('description', '')
+        words = desc.split()
+        if len(words) > 50:
+            desc = " ".join(words[:50]) + "..."
+
         html += f"""
-        <tr class="{row_class}">
-            <td style="white-space: nowrap;">{formatted_time}</td>
-            <td>{event.get('subject', '')}</td>
-            <td>{event.get('description', '')}</td>
-            <td>{attendees_display}</td>
-        </tr>
+                    <tr>
+                        <td style="{td_style} border-left: { '4px solid #ef4444' if attendee_count == 0 else '' };">
+                            <div class="date-badge">{date_part}</div>
+                            <div style="font-size: 14px; color: #64748b; margin-top: 4px; font-weight: 500;">{time_part}</div>
+                        </td>
+                        <td style="{td_style}">
+                            <div class="subject">{event.get('subject', '')}</div>
+                            <div class="desc">{desc}</div>
+                        </td>
+                        <td style="{td_style}">{attendees_display}</td>
+                    </tr>
         """
 
     html += """
-    </table>
-    <p style="font-size: 12px; color: #7f8c8d;">This email was generated automatically.</p>
+                </table>
+            </div>
+        </div>
+        <div class="footer">
+            This email was generated automatically by the IamResponding Event Viewer.
+        </div>
+    </div>
     </body>
     </html>
     """
@@ -219,14 +254,27 @@ def send_email(html_content):
         logger.error("Email configuration is missing or incomplete in .env", extra={"tags": {"event_type": "script_telemetry", "action": "email_error"}})
         return False
 
-    msg = MIMEMultipart('alternative')
+    msg = MIMEMultipart('related')
     msg['Subject'] = f"Upcoming EMA volunteer events and current attendance - {datetime.date.today().strftime('%m/%d/%Y')}"
     msg['From'] = EMAIL_SENDER
     msg['To'] = ", ".join(EMAIL_RECIPIENTS)
     msg['Date'] = formatdate(localtime=True)
 
+    msg_alternative = MIMEMultipart('alternative')
+    msg.attach(msg_alternative)
+
     part = MIMEText(html_content, 'html')
-    msg.attach(part)
+    msg_alternative.attach(part)
+
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'AEMA_Logo.jpg')
+    if os.path.exists(logo_path):
+        with open(logo_path, 'rb') as f:
+            msg_image = MIMEImage(f.read())
+            msg_image.add_header('Content-ID', '<aema_logo>')
+            msg_image.add_header('Content-Disposition', 'inline', filename='AEMA_Logo.jpg')
+            msg.attach(msg_image)
+    else:
+        logger.warning("Logo image not found at %s. Sending without logo.", logo_path)
 
     try:
         logger.info(f"Connecting to SMTP server {SMTP_SERVER}:{SMTP_PORT}")
