@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import requests
 from bs4 import BeautifulSoup
 import datetime
+from zoneinfo import ZoneInfo
 import time
 import logging
 import logging_loki
@@ -127,16 +128,23 @@ def get_events():
              return jsonify({'error': 'Failed to parse event list JSON. Are credentials correct?', 'details': str(e)}), 401
 
         # Step 4: Fetch details for each event
-        current_date_str = datetime.datetime.now().strftime('%Y-%m-%d')
-        
         detailed_events = []
         
         for event in events:
             event_id = event.get('id')
+            event_start_str = event.get('eventStart', '')
+            
+            try:
+                dt_utc = datetime.datetime.strptime(event_start_str[:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+                dt_central = dt_utc.astimezone(ZoneInfo("America/Chicago"))
+                central_start_str = dt_central.strftime('%Y-%m-%dT%H:%M:%S')
+            except Exception:
+                central_start_str = event_start_str
+
             if not event_id:
                 continue
                 
-            detail_url = f"https://coordinator.iamresponding.com/api/EventDetail?eventID={event_id}&recurrenceStartDate={current_date_str}T15:30:00"
+            detail_url = f"https://coordinator.iamresponding.com/api/EventDetail?eventID={event_id}&recurrenceStartDate={central_start_str}"
             urls_called.append(f"GET {detail_url}")
             detail_response = req_session.get(detail_url)
             
