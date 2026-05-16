@@ -627,8 +627,21 @@
         function downloadICS(event) {
             const formatICSDate = (dateStr) => {
                 if (!dateStr) return '';
-                const cleaned = dateStr.replace(/[-:]/g, '').replace(/\..+/, '').replace(/Z$/, '');
-                return cleaned.length >= 15 ? cleaned.substring(0, 15) : cleaned;
+                try {
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) throw new Error("invalid");
+                    const str = d.toLocaleString('en-US', { timeZone: 'America/Chicago', hour12: false });
+                    const [datePart, timePart] = str.split(', ');
+                    let [month, day, year] = datePart.split('/');
+                    let [hour, minute, second] = timePart.split(':');
+                    month = month.padStart(2, '0');
+                    day = day.padStart(2, '0');
+                    hour = hour === '24' ? '00' : hour.padStart(2, '0');
+                    return `${year}${month}${day}T${hour}${minute}${second}`;
+                } catch(e) {
+                    const cleaned = dateStr.replace(/[-:]/g, '').replace(/\..+/, '').replace(/Z$/, '');
+                    return cleaned.length >= 15 ? cleaned.substring(0, 15) : cleaned;
+                }
             };
 
             const start = formatICSDate(event.eventStart);
@@ -674,8 +687,21 @@ END:VCALENDAR`;
         function createGoogleCalendarUrl(event) {
             const formatGCalDate = (dateStr) => {
                 if (!dateStr) return '';
-                const cleaned = dateStr.replace(/[-:]/g, '').replace(/\..+/, '').replace(/Z$/, '');
-                return cleaned.length >= 15 ? cleaned.substring(0, 15) : cleaned;
+                try {
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) throw new Error("invalid");
+                    const str = d.toLocaleString('en-US', { timeZone: 'America/Chicago', hour12: false });
+                    const [datePart, timePart] = str.split(', ');
+                    let [month, day, year] = datePart.split('/');
+                    let [hour, minute, second] = timePart.split(':');
+                    month = month.padStart(2, '0');
+                    day = day.padStart(2, '0');
+                    hour = hour === '24' ? '00' : hour.padStart(2, '0');
+                    return `${year}${month}${day}T${hour}${minute}${second}`;
+                } catch(e) {
+                    const cleaned = dateStr.replace(/[-:]/g, '').replace(/\..+/, '').replace(/Z$/, '');
+                    return cleaned.length >= 15 ? cleaned.substring(0, 15) : cleaned;
+                }
             };
 
             const start = formatGCalDate(event.eventStart);
