@@ -253,6 +253,33 @@
                 margin-top: 0.25rem;
             }
         }
+
+        .search-container {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: rgba(15, 23, 42, 0.25);
+            display: flex;
+            align-items: center;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-main);
+            font-size: 0.95rem;
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        #searchInput:focus {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+        }
     </style>
 </head>
 <body>
@@ -267,6 +294,11 @@
     </header>
 
     <div class="card">
+        {% if logins %}
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search by name, victor number, IP, or status..." autofocus>
+        </div>
+        {% endif %}
         <div class="table-container">
             {% if logins %}
             <table>
@@ -298,6 +330,12 @@
                         <td class="ip-address">{{ log.ip_address }}</td>
                     </tr>
                     {% endfor %}
+                    <tr id="noResultsRow" style="display: none;">
+                        <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
+                            No matching log entries found
+                        </td>
+                    </tr>
                 </tbody>
             </table>
             {% else %}
@@ -311,5 +349,34 @@
     </div>
 </div>
 
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const filter = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('tbody tr:not(#noResultsRow)');
+                const noResultsRow = document.getElementById('noResultsRow');
+                let visibleCount = 0;
+                
+                rows.forEach(row => {
+                    const name = row.querySelector('.identity').textContent.toLowerCase();
+                    const vn = row.querySelector('.vn-tag').textContent.toLowerCase();
+                    const status = row.querySelector('.badge').textContent.toLowerCase();
+                    const ip = row.querySelector('.ip-address').textContent.toLowerCase();
+                    
+                    if (name.includes(filter) || vn.includes(filter) || status.includes(filter) || ip.includes(filter)) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                if (noResultsRow) {
+                    noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+                }
+            });
+        }
+    </script>
 </body>
 </html>
