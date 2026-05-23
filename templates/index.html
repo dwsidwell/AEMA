@@ -31,6 +31,49 @@
             align-items: center;
         }
 
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
         .container {
             width: 100%;
             max-width: 1000px;
@@ -38,10 +81,49 @@
             box-sizing: border-box;
         }
 
-        header {
-            text-align: center;
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
             margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1.5rem;
             animation: fadeInDown 0.8s ease-out;
+        }
+
+        .header-title {
+            text-align: left;
+        }
+
+        .header-title h1 {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .header-title p.subtitle {
+            margin: 0;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin-bottom: 0.25rem;
+        }
+
+        .btn-back:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
         }
 
         h1 {
@@ -297,15 +379,22 @@
 </head>
 <body>
 
-<div class="container">
-    <header style="position: relative;">
-        <div style="position: absolute; top: 0; right: 0; display: flex; gap: 0.5rem;">
-            <a href="/profile" style="color: var(--text-muted); text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border-color); border-radius: 6px; transition: all 0.2s ease;" onmouseover="this.style.color='var(--text-main)'; this.style.backgroundColor='rgba(255,255,255,0.05)';" onmouseout="this.style.color='var(--text-muted)'; this.style.backgroundColor='transparent';">Profile</a>
-            <a href="/" style="color: var(--text-muted); text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border-color); border-radius: 6px; transition: all 0.2s ease;" onmouseover="this.style.color='var(--text-main)'; this.style.backgroundColor='rgba(255,255,255,0.05)';" onmouseout="this.style.color='var(--text-muted)'; this.style.backgroundColor='transparent';">Home</a>
-            <a href="/logout" style="color: var(--text-muted); text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border-color); border-radius: 6px; transition: all 0.2s ease;" onmouseover="this.style.color='var(--text-main)'; this.style.backgroundColor='rgba(255,255,255,0.05)';" onmouseout="this.style.color='var(--text-muted)'; this.style.backgroundColor='transparent';">Logout</a>
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <div class="navbar-user">
+            <a href="/profile" class="btn-nav-outline">Profile</a>
+            <a href="/" class="btn-nav-outline">Home</a>
+            <a href="/logout" class="btn-nav-outline">Logout</a>
         </div>
-        <h1>Event Viewer</h1>
-        <p class="subtitle">Securely fetching your IamResponding events</p>
+    </nav>
+
+<div class="container">
+    <header class="dashboard-header">
+        <div class="header-title">
+            <h1>Event Viewer</h1>
+            <p class="subtitle">Securely fetching your IamResponding events</p>
+        </div>
+        <a href="/" class="btn-back">&larr; Back to Portal</a>
     </header>
 
     <div class="card" id="loginCard">

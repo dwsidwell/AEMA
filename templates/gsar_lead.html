@@ -301,9 +301,12 @@
     </nav>
 
     <div class="container">
-        <header>
-            <h1>GSAR Team Lead Dashboard</h1>
-            <p class="subtitle">Overview of Search and Rescue continuing training hours for all volunteers. Syncs directly with Google Sheets.</p>
+        <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="flex: 1; min-width: 280px;">
+                <h1 style="margin: 0 0 0.5rem 0;">GSAR Team Lead Dashboard</h1>
+                <p class="subtitle" style="margin: 0;">Overview of Search and Rescue continuing training hours for all volunteers. Syncs directly with Google Sheets.</p>
+            </div>
+            <a href="/" class="btn-back" style="display: inline-flex; align-items: center; padding: 0.6rem 1.2rem; background-color: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: all 0.2s ease; flex-shrink: 0; margin-bottom: 0.25rem;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'; this.style.borderColor='var(--text-muted)';" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.05)'; this.style.borderColor='var(--border-color)';">&larr; Back to Portal</a>
         </header>
 
         {% if error %}
@@ -373,6 +376,14 @@
             btn.addEventListener('click', function() {
                 document.getElementById('loadingOverlay').style.display = 'flex';
             });
+        });
+
+        // Hide loading screen when restoring page from back-forward cache
+        window.addEventListener('pageshow', function(event) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
         });
     </script>
 </body>
