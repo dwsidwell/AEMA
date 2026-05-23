@@ -1,5 +1,6 @@
 import os
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+import re
 import requests
 from bs4 import BeautifulSoup
 import datetime
@@ -8,10 +9,20 @@ import time
 import logging
 import logging_loki
 from dotenv import load_dotenv
+import json
+from werkzeug.security import generate_password_hash, check_password_hash
+import csv
+from io import StringIO
+import secrets
+import string
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='assets', static_url_path='/assets')
 app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key')
 
 # Grafana Loki Setup
@@ -33,32 +44,581 @@ else:
     logging.basicConfig(level=logging.INFO)
     logger.warning("Grafana Loki credentials not fully configured. Logging to console only.")
 
+# User Registry Helper Functions
+USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        # Generate initial default users (Sidwell, Schur, Reese)
+        default_users = {
+            "sidwell_v31": {
+                "last_name": "Sidwell",
+                "victor_number": "V31",
+                "password_hash": generate_password_hash("password123"),
+                "is_default": True
+            },
+            "schur_v22": {
+                "last_name": "Schur",
+                "victor_number": "V22",
+                "password_hash": generate_password_hash("password123"),
+                "is_default": True
+            },
+            "reese_v2": {
+                "last_name": "Reese",
+                "victor_number": "V2",
+                "password_hash": generate_password_hash("password123"),
+                "is_default": True
+            }
+        }
+        try:
+            with open(USERS_FILE, 'w') as f:
+                json.dump(default_users, f, indent=4)
+            logger.info("Generated default users.json file successfully.")
+        except Exception as e:
+            logger.error(f"Error creating default users file: {e}")
+        return default_users
+        
+    try:
+        with open(USERS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading users file: {e}")
+        return {}
+
+def save_users(users):
+    try:
+        with open(USERS_FILE, 'w') as f:
+            json.dump(users, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving users file: {e}")
+        return False
+
+def send_password_reset_email(to_email, last_name, victor_number, temp_password):
+    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_USER = os.environ.get('SMTP_USER')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+    EMAIL_SENDER = os.environ.get('EMAIL_SENDER', SMTP_USER)
+    
+    if not all([SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, EMAIL_SENDER]):
+        logger.error("SMTP credentials not fully configured in environment.")
+        return False
+        
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "IamResponding Event Viewer - Password Reset"
+    msg['From'] = EMAIL_SENDER
+    msg['To'] = to_email
+    msg['Date'] = formatdate(localtime=True)
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+        body {{ font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }}
+        .wrapper {{ max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid #334155; }}
+        .header {{ background-color: #1e3a8a; color: #ffffff; padding: 30px; text-align: center; border-bottom: 1px solid #334155; }}
+        .header h2 {{ margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px; }}
+        .content {{ padding: 30px; line-height: 1.6; color: #e2e8f0; }}
+        .temp-password {{ background-color: #0f172a; color: #3b82f6; font-family: monospace; font-size: 22px; font-weight: bold; padding: 12px 20px; border-radius: 6px; display: inline-block; letter-spacing: 2px; margin: 20px 0; border: 1px solid #334155; }}
+        .footer {{ background-color: #0f172a; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #334155; }}
+    </style>
+    </head>
+    <body>
+    <div class="wrapper">
+        <div class="header">
+            <h2>Password Reset Request</h2>
+        </div>
+        <div class="content">
+            <p>Hello {last_name} ({victor_number}),</p>
+            <p>A password reset request was made for your account on the IamResponding Event Viewer.</p>
+            <p>Your temporary password is:</p>
+            <div style="text-align: center;">
+                <span class="temp-password">{temp_password}</span>
+            </div>
+            <p>Please log in using this temporary password. Upon logging in, you will be prompted to choose a new secure password.</p>
+            <p>If you did not request this, you can ignore this email or contact the administrator.</p>
+        </div>
+        <div class="footer">
+            This is an automated message from the IamResponding Event Viewer.
+        </div>
+    </div>
+    </body>
+    </html>
+    """
+    
+    msg.attach(MIMEText(html_content, 'html'))
+    
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(EMAIL_SENDER, [to_email], msg.as_string())
+        server.quit()
+        logger.info(f"Password reset email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send password reset email: {e}")
+        return False
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
     if request.method == 'POST':
-        if request.form.get('password') == os.environ.get('SITE_PASSWORD'):
-            session['authenticated'] = True
-            logger.info("Successful login attempt", extra={"tags": {"event_type": "app_telemetry", "action": "login_success"}})
-            return redirect(url_for('index'))
+        last_name = request.form.get('last_name', '').strip()
+        victor_number = request.form.get('victor_number', '').strip()
+        password = request.form.get('password', '')
+
+        users = load_users()
+        user_key = f"{last_name.lower()}_{victor_number.lower()}"
+        
+        user = users.get(user_key)
+        if user and check_password_hash(user['password_hash'], password):
+            session['user_key'] = user_key
+            session['last_name'] = user['last_name']
+            session['victor_number'] = user['victor_number']
+            
+            if user.get('is_default', True):
+                session['must_change_password'] = True
+                logger.info(f"User {user_key} logged in with default password, forcing change", extra={"tags": {"event_type": "app_telemetry", "action": "login_must_change"}})
+                return redirect(url_for('change_password'))
+            else:
+                session['authenticated'] = True
+                logger.info(f"User {user_key} logged in successfully", extra={"tags": {"event_type": "app_telemetry", "action": "login_success"}})
+                return redirect(url_for('index'))
         else:
-            error = 'Invalid password'
-            logger.warning("Failed login attempt", extra={"tags": {"event_type": "app_telemetry", "action": "login_failed"}})
+            error = 'Invalid Last Name, Victor Number, or Password'
+            logger.warning(f"Failed login attempt for {last_name} ({victor_number})", extra={"tags": {"event_type": "app_telemetry", "action": "login_failed"}})
     return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
-    session.pop('authenticated', None)
+    session.clear()
     return redirect(url_for('login'))
+
+@app.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    user_key = session.get('user_key')
+    if not user_key:
+        return redirect(url_for('login'))
+        
+    error = None
+    users = load_users()
+    current_user = users.get(user_key, {})
+    email = current_user.get('email', '')
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        email = request.form.get('email', '').strip()
+        
+        if not email:
+            error = 'Email address is required'
+        elif '@' not in email or '.' not in email:
+            error = 'Invalid email address'
+        elif not new_password:
+            error = 'Password cannot be empty'
+        elif new_password != confirm_password:
+            error = 'Passwords do not match'
+        elif len(new_password) < 6:
+            error = 'Password must be at least 6 characters long'
+        elif new_password == 'password123':
+            error = 'Please choose a password different from the default'
+        else:
+            if user_key in users:
+                users[user_key]['password_hash'] = generate_password_hash(new_password)
+                users[user_key]['is_default'] = False
+                users[user_key]['email'] = email
+                if save_users(users):
+                    session.pop('must_change_password', None)
+                    session['authenticated'] = True
+                    logger.info(f"Password changed and email saved successfully for {user_key}", extra={"tags": {"event_type": "app_telemetry", "action": "password_changed"}})
+                    return redirect(url_for('index'))
+                else:
+                    error = 'Failed to save password. Please try again.'
+            else:
+                error = 'User not found in registry.'
+                
+    return render_template('change_password.html', error=error, email=email)
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    error = None
+    success = None
+    if request.method == 'POST':
+        last_name = request.form.get('last_name', '').strip()
+        victor_number = request.form.get('victor_number', '').strip()
+        
+        users = load_users()
+        user_key = f"{last_name.lower()}_{victor_number.lower()}"
+        
+        user = users.get(user_key)
+        if user:
+            to_email = user.get('email')
+            if to_email:
+                alphabet = string.ascii_letters + string.digits
+                temp_password = ''.join(secrets.choice(alphabet) for _ in range(8))
+                
+                user['password_hash'] = generate_password_hash(temp_password)
+                user['is_default'] = True
+                
+                if save_users(users):
+                    if send_password_reset_email(to_email, user['last_name'], user['victor_number'], temp_password):
+                        success = f"A temporary password has been successfully emailed to {to_email}."
+                        logger.info(f"Password reset triggered successfully for {user_key}", extra={"tags": {"event_type": "app_telemetry", "action": "forgot_password_success"}})
+                    else:
+                        error = "Failed to send the email. Please try again or contact the administrator."
+                else:
+                    error = "Failed to save the new password. Please try again."
+            else:
+                error = "No email address is registered for this account. Please contact an administrator to reset your password."
+                logger.warning(f"Forgot password attempt for {user_key} failed: no email address registered", extra={"tags": {"event_type": "app_telemetry", "action": "forgot_password_no_email"}})
+        else:
+            error = "Invalid Last Name or Victor Number. Account not found."
+            logger.warning(f"Forgot password attempt failed: account not found for {last_name} ({victor_number})", extra={"tags": {"event_type": "app_telemetry", "action": "forgot_password_not_found"}})
+            
+    return render_template('forgot_password.html', error=error, success=success)
+
+def validate_email(email_str):
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(email_regex, email_str))
+
+def validate_us_phone(phone_str):
+    digits = re.sub(r'\D', '', phone_str)
+    if len(digits) == 10:
+        return True
+    if len(digits) == 11 and digits.startswith('1'):
+        return True
+    return False
+
+def format_us_phone(phone_str):
+    digits = re.sub(r'\D', '', phone_str)
+    if len(digits) == 11 and digits.startswith('1'):
+        digits = digits[1:]
+    if len(digits) == 10:
+        return f"{digits[0:3]}-{digits[3:6]}-{digits[6:10]}"
+    return phone_str
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    user_key = session.get('user_key')
+    users = load_users()
+    user = users.get(user_key)
+    
+    if not user:
+        return redirect(url_for('logout'))
+        
+    error = None
+    success = None
+    
+    if request.method == 'POST':
+        first_name = request.form.get('first_name', '').strip()
+        email = request.form.get('email', '').strip()
+        cell_phone = request.form.get('cell_phone', '').strip()
+        
+        if not first_name:
+            error = 'First name is required'
+        elif not email:
+            error = 'Email address is required'
+        elif not validate_email(email):
+            error = 'Invalid email address format'
+        elif not cell_phone:
+            error = 'Cell phone is required'
+        elif not validate_us_phone(cell_phone):
+            error = 'Invalid US phone number (must contain 10 digits)'
+        else:
+            user['first_name'] = first_name
+            user['email'] = email
+            user['cell_phone'] = format_us_phone(cell_phone)
+            
+            if save_users(users):
+                logger.info(f"Profile updated successfully for {user_key}", extra={"tags": {"event_type": "app_telemetry", "action": "profile_updated"}})
+                flash('Profile updated successfully!', 'success')
+                return redirect(url_for('index'))
+            else:
+                error = 'Failed to save profile. Please try again.'
+                
+    return render_template(
+        'profile.html',
+        last_name=user.get('last_name'),
+        victor_number=user.get('victor_number'),
+        first_name=user.get('first_name', ''),
+        email=user.get('email', ''),
+        cell_phone=user.get('cell_phone', ''),
+        error=error,
+        success=success
+    )
 
 @app.route('/')
 def index():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+    last_name = session.get('last_name', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    return render_template('landing.html', is_admin=is_admin)
+
+@app.route('/iar')
+def iar_dashboard():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
     if not session.get('authenticated'):
         return redirect(url_for('login'))
     return render_template('index.html')
 
+@app.route('/gsar')
+def gsar_dashboard():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    def parse_date(date_str):
+        for fmt in ('%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d'):
+            try:
+                return datetime.datetime.strptime(date_str.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    victor_number = session.get('victor_number', '')
+    last_name = session.get('last_name', '')
+    user_vn = victor_number.upper().lstrip('V')
+    
+    # Check admin status
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    
+    if is_admin:
+        target_vn = request.args.get('view_vn', user_vn).upper().lstrip('V')
+    else:
+        target_vn = user_vn
+        
+    today = datetime.date.today()
+    three_years_ago = today - datetime.timedelta(days=3*365)
+    
+    sheet_url = os.environ.get('GSAR_SHEET_URL')
+    if not sheet_url:
+        sheet_url = "https://docs.google.com/spreadsheets/d/1vuYmvyLLW-xW5uMAjzd1hBAQ9kD2aQjeY5d5llzPeN0/export?format=csv"
+        
+    records = []
+    total_hours = 0.0
+    recent_hours = 0.0
+    error_msg = None
+    
+    unique_users = {}
+    
+    try:
+        response = requests.get(sheet_url, timeout=10)
+        if response.status_code == 200:
+            csv_content = response.text
+            csv_file = StringIO(csv_content)
+            reader = csv.DictReader(csv_file)
+            
+            for row in reader:
+                # Clean Victor Number from row
+                row_vn = row.get('Victor Number', '').strip().upper().lstrip('V')
+                row_name = row.get('Full Name', '').strip()
+                
+                # If admin, populate unique users list
+                if is_admin and row_vn and row_name:
+                    if row_vn not in unique_users:
+                        unique_users[row_vn] = {
+                            'name': row_name,
+                            'display_vn': f"V{row_vn}"
+                        }
+                        
+                # Match against the viewed user
+                if row_vn == target_vn:
+                    hours_str = row.get('Hours', '0').strip()
+                    try:
+                        hours_val = float(hours_str)
+                    except ValueError:
+                        hours_val = 0.0
+                        
+                    total_hours += hours_val
+                    
+                    date_str = row.get('Date', '')
+                    parsed_date = parse_date(date_str)
+                    if parsed_date and three_years_ago <= parsed_date <= today:
+                        recent_hours += hours_val
+                    
+                    records.append({
+                        'timestamp': row.get('Timestamp', ''),
+                        'name': row_name,
+                        'date': row.get('Date', ''),
+                        'hours': hours_str,
+                        'location': row.get('Location', ''),
+                        'title': row.get('Event Title', ''),
+                        'instructor': row.get('Instructor', ''),
+                        'description': row.get('Description', '')
+                    })
+        else:
+            error_msg = f"Failed to fetch training log from Google Sheet (HTTP {response.status_code})"
+    except Exception as e:
+        logger.error(f"Error fetching GSAR continuing education sheet: {e}")
+        error_msg = f"Failed to retrieve training log: {str(e)}"
+        
+    # Helper to sort records
+    def get_record_date(r):
+        d = parse_date(r['date'])
+        return d if d else datetime.date.min
+
+    records.sort(key=get_record_date, reverse=True)
+    
+    location_hours = {}
+    for r in records:
+        loc = r['location'].strip() or 'Unknown Location'
+        loc = loc.title()
+        try:
+            h = float(r['hours'])
+        except ValueError:
+            h = 0.0
+        location_hours[loc] = location_hours.get(loc, 0.0) + h
+        
+    breakdown = [{'location': k, 'hours': round(v, 2)} for k, v in location_hours.items()]
+    breakdown.sort(key=lambda x: x['hours'], reverse=True)
+    
+    # Sort dropdown users alphabetically by name
+    dropdown_users = sorted(
+        [{'vn': k, 'name': v['name'], 'display_vn': v['display_vn']} for k, v in unique_users.items()],
+        key=lambda u: u['name'].lower()
+    )
+    
+    # Resolve the display name of the viewed person
+    viewed_name = last_name
+    viewed_vn = victor_number
+    if is_admin:
+        if target_vn in unique_users:
+            viewed_name = unique_users[target_vn]['name']
+            viewed_vn = unique_users[target_vn]['display_vn']
+        elif target_vn == user_vn:
+            viewed_name = f"{last_name}"
+            viewed_vn = f"{victor_number}"
+        else:
+            viewed_name = "Unknown Volunteer"
+            viewed_vn = f"V{target_vn}"
+            
+    return render_template(
+        'gsar.html',
+        records=records,
+        total_hours=round(total_hours, 2),
+        recent_hours=round(recent_hours, 2),
+        course_count=len(records),
+        breakdown=breakdown,
+        error=error_msg,
+        user_name=f"{last_name}, {victor_number}",
+        is_admin=is_admin,
+        dropdown_users=dropdown_users,
+        selected_vn=target_vn,
+        viewed_user_label=f"{viewed_name} ({viewed_vn})"
+    )
+
+@app.route('/gsar-lead')
+def gsar_team_lead():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    victor_number = session.get('victor_number', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    if not is_admin:
+        logger.warning(f"Unauthorized access attempt to /gsar-lead by {last_name} ({victor_number})", extra={"tags": {"event_type": "app_telemetry", "action": "unauthorized_lead_access"}})
+        return redirect(url_for('index'))
+        
+    sheet_url = os.environ.get('GSAR_SHEET_URL')
+    if not sheet_url:
+        sheet_url = "https://docs.google.com/spreadsheets/d/1vuYmvyLLW-xW5uMAjzd1hBAQ9kD2aQjeY5d5llzPeN0/export?format=csv"
+        
+    def parse_date(date_str):
+        for fmt in ('%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d'):
+            try:
+                return datetime.datetime.strptime(date_str.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    today = datetime.date.today()
+    three_years_ago = today - datetime.timedelta(days=3*365)
+    
+    people = {}
+    error_msg = None
+    
+    try:
+        response = requests.get(sheet_url, timeout=10)
+        if response.status_code == 200:
+            csv_content = response.text
+            csv_file = StringIO(csv_content)
+            reader = csv.DictReader(csv_file)
+            
+            for row in reader:
+                row_vn = row.get('Victor Number', '').strip().upper()
+                if row_vn and not row_vn.startswith('V'):
+                    row_vn = f"V{row_vn}"
+                
+                row_name = row.get('Full Name', '').strip()
+                if not row_name:
+                    continue
+                
+                row_name = row_name.title()
+                
+                hours_str = row.get('Hours', '0').strip()
+                try:
+                    hours_val = float(hours_str)
+                except ValueError:
+                    hours_val = 0.0
+                
+                date_str = row.get('Date', '')
+                parsed_date = parse_date(date_str)
+                is_recent = False
+                if parsed_date and three_years_ago <= parsed_date <= today:
+                    is_recent = True
+                
+                person_key = row_vn if row_vn else row_name
+                
+                if person_key not in people:
+                    people[person_key] = {
+                        'name': row_name,
+                        'victor_number': row_vn or 'N/A',
+                        'total_hours': 0.0,
+                        'recent_hours': 0.0
+                    }
+                
+                people[person_key]['total_hours'] += hours_val
+                if is_recent:
+                    people[person_key]['recent_hours'] += hours_val
+            
+            for p in people.values():
+                p['total_hours'] = round(p['total_hours'], 2)
+                p['recent_hours'] = round(p['recent_hours'], 2)
+        else:
+            error_msg = f"Failed to fetch training log from Google Sheet (HTTP {response.status_code})"
+    except Exception as e:
+        logger.error(f"Error fetching GSAR data for Team Lead: {e}")
+        error_msg = f"Failed to retrieve training log: {str(e)}"
+        
+    sorted_people = sorted(people.values(), key=lambda x: x['name'].lower())
+    
+    return render_template(
+        'gsar_lead.html',
+        people=sorted_people,
+        error=error_msg,
+        user_name=f"{last_name}, {victor_number}"
+    )
+
 @app.route('/api/events', methods=['POST'])
 def get_events():
+    if session.get('must_change_password'):
+        return jsonify({'error': 'Password change required.'}), 403
     if not session.get('authenticated'):
         logger.warning("Unauthorized access attempt to /api/events", extra={"tags": {"event_type": "app_telemetry"}})
         return jsonify({'error': 'Unauthorized. Please login again.'}), 401

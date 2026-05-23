@@ -1,0 +1,23 @@
+{
+    "sidwell_v31": {
+        "last_name": "Sidwell",
+        "victor_number": "V31",
+        "password_hash": "scrypt:32768:8:1$VfqqhzbJ6IgiOAtE$c2202d4853bf6ccfb53ec911649cd50381351a33cf6d6830ef398f3a478f43e415eec7dfb1194e58f6eb25e763ec00bd163ef55a290a8e861b0ab2a6d34f277e",
+        "is_default": false,
+        "email": "dwsidwell@gmail.com",
+        "first_name": "Dave",
+        "cell_phone": "630-258-2353"
+    },
+    "schur_v22": {
+        "last_name": "Schur",
+        "victor_number": "V22",
+        "password_hash": "scrypt:32768:8:1$VXucPzB6p7szZQ55$89e7118cf6a87e265fd51e647bc71e76954de577af41af7a46b6c37a3f32f2c12c0ae1272fe791c53293a8625f115b7be012e02edd50042bf338d21befcf1394",
+        "is_default": true
+    },
+    "reese_v2": {
+        "last_name": "Reese",
+        "victor_number": "V2",
+        "password_hash": "scrypt:32768:8:1$gX4O6kDoodr1PmjU$b9dd0a4ffabd51544882395e120079fa30a2c3b3cc30b4e5e76aa09504177dd06070749b532000aed347af04e0929e4c014b6a0fe4e32ca97722d3d2064a00ff",
+        "is_default": true
+    }
+}
