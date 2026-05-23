@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSAR Continuing Education - Volunteer Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --accent-color: #d8b4fe;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            background: linear-gradient(135deg, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-tag {
+            background-color: rgba(139, 92, 246, 0.1);
+            color: var(--accent-color);
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto 4rem auto;
+            padding: 0 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        header {
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #a78bfa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin-top: 0;
+        }
+
+        /* Error Banner */
+        .error-banner {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (min-width: 600px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 900px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .stat-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            position: relative;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: var(--primary-color);
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .stat-unit {
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--accent-color);
+            margin-left: 0.25rem;
+        }
+
+        /* Shaded Card Statuses */
+        .status-green {
+            background-color: rgba(16, 185, 129, 0.08) !important;
+            border-color: rgba(16, 185, 129, 0.3) !important;
+        }
+        .status-green::after {
+            background-color: #10b981 !important;
+        }
+        .status-green .stat-unit {
+            color: #34d399 !important;
+        }
+
+        .status-yellow {
+            background-color: rgba(245, 158, 11, 0.08) !important;
+            border-color: rgba(245, 158, 11, 0.3) !important;
+        }
+        .status-yellow::after {
+            background-color: #f59e0b !important;
+        }
+        .status-yellow .stat-unit {
+            color: #fbbf24 !important;
+        }
+
+        .status-red {
+            background-color: rgba(239, 68, 68, 0.08) !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
+        }
+        .status-red::after {
+            background-color: #ef4444 !important;
+        }
+        .status-red .stat-unit {
+            color: #f87171 !important;
+        }
+
+        .stat-note {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            line-height: 1.35;
+        }
+        
+        .status-green .stat-note {
+            color: #a7f3d0;
+        }
+        
+        .status-yellow .stat-note {
+            color: #fde68a;
+        }
+        
+        .status-red .stat-note {
+            color: #fecaca;
+        }
+
+        /* Admin User Selector */
+        .admin-selector {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.25rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            flex-wrap: wrap;
+        }
+
+        .selector-label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .selector-dropdown {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            min-width: 280px;
+            transition: all 0.2s ease;
+        }
+
+        .selector-dropdown:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+        }
+
+        /* Layout Columns */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 992px) {
+            .layout-grid {
+                grid-template-columns: 2.5fr 1fr;
+            }
+        }
+
+        .dashboard-section {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            box-sizing: border-box;
+        }
+
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        /* Table Design */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 1rem 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            color: var(--text-main);
+            vertical-align: top;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .cell-bold {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .cell-hours {
+            font-weight: 700;
+            color: var(--success-color);
+        }
+
+        .desc-text {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            max-width: 500px;
+            white-space: pre-line;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Progress List (Breakdown) */
+        .breakdown-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .breakdown-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .breakdown-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .breakdown-label {
+            color: var(--text-main);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .breakdown-value {
+            color: var(--success-color);
+            font-weight: 700;
+        }
+
+        .progress-bar-bg {
+            height: 6px;
+            background-color: rgba(15, 23, 42, 0.5);
+            border-radius: 9999px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            border-radius: 9999px;
+            transition: width 0.5s ease;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 3rem 1rem;
+        }
+
+        .empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--border-color);
+        }
+
+        /* Loading Overlay styling */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Training Log...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <div class="navbar-user">
+            <span class="user-tag">{{ user_name }}</span>
+            <a href="/profile" class="btn-nav-outline">Profile</a>
+            <a href="/" class="btn-nav-outline">Home</a>
+            <a href="/logout" class="btn-nav-outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>GSAR Continuing Education</h1>
+            <p class="subtitle">Personal training registry summaries and logs synced directly from Google Sheets for <strong>{{ viewed_user_label }}</strong>.</p>
+        </header>
+
+        {% if is_admin %}
+        <div class="admin-selector">
+            <label for="userSelector" class="selector-label">View Member Training History:</label>
+            <select id="userSelector" class="selector-dropdown">
+                {% for u in dropdown_users %}
+                <option value="{{ u.vn }}" {% if u.vn == selected_vn %}selected{% endif %}>
+                    {{ u.name }} ({{ u.display_vn }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="error-banner">
+            <strong>Notice:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="stats-grid">
+            <div class="stat-card {% if recent_hours >= 60 %}status-green{% elif recent_hours >= 50 %}status-yellow{% else %}status-red{% endif %}">
+                <span class="stat-label">Hours in Last 3 Years</span>
+                <span class="stat-value">{{ recent_hours }}<span class="stat-unit">hrs</span></span>
+                <span class="stat-note">60 hours is needed in the previous 3 year period.</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Training Hours</span>
+                <span class="stat-value">{{ total_hours }}<span class="stat-unit">hrs</span></span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Completed Classes</span>
+                <span class="stat-value">{{ course_count }}<span class="stat-unit">courses</span></span>
+            </div>
+        </div>
+
+        <div class="layout-grid">
+            <!-- Left Side: Table of Log Entries -->
+            <div class="dashboard-section">
+                <h2 class="section-title">Training Log Registry</h2>
+                
+                {% if records %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 15%">Date</th>
+                                <th style="width: 20%">Name</th>
+                                <th style="width: 35%">Course / Event</th>
+                                <th style="width: 20%">Location</th>
+                                <th style="width: 10%">Credit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in records %}
+                            <tr>
+                                <td>{{ r.date }}</td>
+                                <td class="cell-bold">{{ r.name }}</td>
+                                <td>
+                                    <div>{{ r.title }}</div>
+                                </td>
+                                <td>
+                                    <div>{{ r.location }}</div>
+                                    {% if r.instructor and r.instructor != 'N/A' %}
+                                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                                            Instructor: {{ r.instructor }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="cell-hours">{{ r.hours }} hrs</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📂</div>
+                    <p>No training records found matching your Victor Number.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Side: Location Breakdown -->
+            <div class="dashboard-section">
+                <h2 class="section-title">Hours by Location</h2>
+                
+                {% if breakdown %}
+                <div class="breakdown-list">
+                    {% for item in breakdown %}
+                        <!-- Set dynamic width calculation relative to the highest location hours -->
+                        {% set max_hours = breakdown[0].hours %}
+                        {% if max_hours > 0 %}
+                            {% set pct = (item.hours / max_hours * 100)|int %}
+                        {% else %}
+                            {% set pct = 0 %}
+                        {% endif %}
+                        <div class="breakdown-item">
+                            <div class="breakdown-info">
+                                <span class="breakdown-label" title="{{ item.location }}">{{ item.location }}</span>
+                                <span class="breakdown-value">{{ item.hours }} hrs</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: {{ pct }}%"></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No location details available.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Trigger loading screen on volunteer select change
+        const selector = document.getElementById('userSelector');
+        if (selector) {
+            selector.addEventListener('change', function() {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                // Wait slightly for overlay to display and trigger the layout transition
+                setTimeout(() => {
+                    window.location.href = '/gsar?view_vn=' + this.value;
+                }, 50);
+            });
+        }
+
+        // Trigger loading screen on navbar button clicks
+        document.querySelectorAll('.btn-nav-outline').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // If it is an external link, do show the loader
+                document.getElementById('loadingOverlay').style.display = 'flex';
+            });
+        });
+    </script>
+</body>
+</html>
