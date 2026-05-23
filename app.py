@@ -94,6 +94,135 @@ def save_users(users):
         logger.error(f"Error saving users file: {e}")
         return False
 
+# Login Audit Tracking Helpers
+LOGINS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logins.json')
+
+def log_login_event(last_name, victor_number, ip_address, status):
+    chicago_tz = ZoneInfo("America/Chicago")
+    timestamp = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d %H:%M:%S')
+
+    form_url = os.environ.get('LOGIN_FORM_URL')
+    entry_time = os.environ.get('LOGIN_FORM_ENTRY_TIME')
+    entry_user = os.environ.get('LOGIN_FORM_ENTRY_USER')
+    entry_vn = os.environ.get('LOGIN_FORM_ENTRY_VN')
+    entry_ip = os.environ.get('LOGIN_FORM_ENTRY_IP')
+    entry_status = os.environ.get('LOGIN_FORM_ENTRY_STATUS')
+
+    if form_url and entry_time and entry_user and entry_vn and entry_ip and entry_status:
+        try:
+            data = {
+                entry_time: timestamp,
+                entry_user: last_name,
+                entry_vn: victor_number,
+                entry_ip: ip_address,
+                entry_status: status
+            }
+            post_url = form_url
+            if not post_url.endswith('/formResponse') and '/viewform' in post_url:
+                post_url = post_url.replace('/viewform', '/formResponse')
+            elif not post_url.endswith('/formResponse') and not post_url.endswith('/formResponse/'):
+                post_url = post_url.rstrip('/') + '/formResponse'
+                
+            response = requests.post(post_url, data=data, timeout=3)
+            if response.status_code == 200:
+                logger.info(f"Log event written to Google Form successfully for {last_name} ({status})")
+                return True
+            else:
+                logger.error(f"Failed to post log to Google Form: HTTP {response.status_code}. Falling back to local file.")
+        except Exception as e:
+            logger.error(f"Error posting log to Google Form: {e}. Falling back to local file.")
+
+    # Local file logging fallback
+    try:
+        logins = []
+        if os.path.exists(LOGINS_FILE):
+            with open(LOGINS_FILE, 'r') as f:
+                logins = json.load(f)
+        
+        logins.append({
+            "timestamp": timestamp,
+            "last_name": last_name or "Unknown",
+            "victor_number": victor_number or "Unknown",
+            "ip_address": ip_address,
+            "status": status
+        })
+        
+        if len(logins) > 200:
+            logins = logins[-200:]
+            
+        with open(LOGINS_FILE, 'w') as f:
+            json.dump(logins, f, indent=4)
+        logger.info(f"Log event written to local logins.json for {last_name} ({status})")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to write log to local logins.json: {e}")
+        return False
+
+def load_logins():
+    sheet_url = os.environ.get('LOGIN_SHEET_URL')
+    
+    if sheet_url:
+        try:
+            if 'export?format=csv' not in sheet_url and '/edit' in sheet_url:
+                sheet_url = sheet_url.split('/edit')[0] + '/export?format=csv'
+            elif 'export?format=csv' not in sheet_url:
+                sheet_url = sheet_url.rstrip('/') + '/export?format=csv'
+
+            response = requests.get(sheet_url, timeout=5)
+            if response.status_code == 200:
+                csv_content = response.text
+                csv_file = StringIO(csv_content)
+                reader = csv.reader(csv_file)
+                headers = next(reader, None)
+                
+                logins = []
+                if headers:
+                    idx_timestamp = -1
+                    idx_name = -1
+                    idx_vn = -1
+                    idx_ip = -1
+                    idx_status = -1
+                    
+                    for i, h in enumerate(headers):
+                        h_lower = h.lower()
+                        if 'time' in h_lower:
+                            idx_timestamp = i
+                        elif 'name' in h_lower or 'user' in h_lower:
+                            idx_name = i
+                        elif 'victor' in h_lower or 'vn' in h_lower or 'number' in h_lower:
+                            idx_vn = i
+                        elif 'ip' in h_lower or 'address' in h_lower:
+                            idx_ip = i
+                        elif 'status' in h_lower:
+                            idx_status = i
+                            
+                    for row in reader:
+                        if len(row) < len(headers):
+                            continue
+                        
+                        logins.append({
+                            "timestamp": row[idx_timestamp] if idx_timestamp != -1 and idx_timestamp < len(row) else row[0],
+                            "last_name": row[idx_name] if idx_name != -1 and idx_name < len(row) else (row[1] if len(row) > 1 else ""),
+                            "victor_number": row[idx_vn] if idx_vn != -1 and idx_vn < len(row) else (row[2] if len(row) > 2 else ""),
+                            "ip_address": row[idx_ip] if idx_ip != -1 and idx_ip < len(row) else (row[3] if len(row) > 3 else ""),
+                            "status": row[idx_status] if idx_status != -1 and idx_status < len(row) else (row[4] if len(row) > 4 else "Success")
+                        })
+                logger.info(f"Loaded {len(logins)} logins from Google Sheet CSV successfully.")
+                return logins
+            else:
+                logger.error(f"Failed to fetch login logs from Google Sheet: HTTP {response.status_code}. Falling back to local file.")
+        except Exception as e:
+            logger.error(f"Error fetching login logs from Google Sheet: {e}. Falling back to local file.")
+
+    if os.path.exists(LOGINS_FILE):
+        try:
+            with open(LOGINS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading local logins.json: {e}")
+            
+    return []
+
 def send_password_reset_email(to_email, last_name, victor_number, temp_password):
     SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
@@ -180,15 +309,26 @@ def login():
             session['last_name'] = user['last_name']
             session['victor_number'] = user['victor_number']
             
+            ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+            if ip_address and ',' in ip_address:
+                ip_address = ip_address.split(',')[0].strip()
+                
             if user.get('is_default', True):
                 session['must_change_password'] = True
+                log_login_event(user['last_name'], user['victor_number'], ip_address, "Success (Reset Required)")
                 logger.info(f"User {user_key} logged in with default password, forcing change", extra={"tags": {"event_type": "app_telemetry", "action": "login_must_change"}})
                 return redirect(url_for('change_password'))
             else:
                 session['authenticated'] = True
+                log_login_event(user['last_name'], user['victor_number'], ip_address, "Success")
                 logger.info(f"User {user_key} logged in successfully", extra={"tags": {"event_type": "app_telemetry", "action": "login_success"}})
                 return redirect(url_for('index'))
         else:
+            ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+            if ip_address and ',' in ip_address:
+                ip_address = ip_address.split(',')[0].strip()
+            log_login_event(last_name, victor_number, ip_address, "Failed")
+            
             error = 'Invalid Last Name, Victor Number, or Password'
             logger.warning(f"Failed login attempt for {last_name} ({victor_number})", extra={"tags": {"event_type": "app_telemetry", "action": "login_failed"}})
     return render_template('login.html', error=error)
@@ -364,7 +504,30 @@ def index():
         return redirect(url_for('login'))
     last_name = session.get('last_name', '')
     is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
-    return render_template('landing.html', is_admin=is_admin)
+    is_sidwell = last_name.lower() == 'sidwell'
+    return render_template('landing.html', is_admin=is_admin, is_sidwell=is_sidwell)
+
+@app.route('/logins')
+def view_logins():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    if last_name.lower() != 'sidwell':
+        logger.warning(f"Unauthorized audit access attempt by {last_name}")
+        return redirect(url_for('index'))
+        
+    logins = load_logins()
+    
+    # Sort logins descending by timestamp
+    def get_timestamp(log):
+        return log.get('timestamp', '')
+        
+    logins.sort(key=get_timestamp, reverse=True)
+    
+    return render_template('logins.html', logins=logins)
 
 @app.route('/iar')
 def iar_dashboard():
