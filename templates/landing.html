@@ -340,6 +340,20 @@
             transform: translateX(2px);
             color: #fbbf24;
         }
+
+        .card-audit::before {
+            background: linear-gradient(90deg, #dc2626, #f87171);
+        }
+
+        .btn-audit {
+            background-color: #dc2626;
+            color: white;
+        }
+
+        .btn-audit:hover {
+            background-color: #b91c1c;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -438,6 +452,18 @@
                     </ul>
                 </div>
             </div>
+
+            {% if is_sidwell %}
+            <div class="card card-audit">
+                <div>
+                    <h2 class="card-title">Login History</h2>
+                    <p class="card-description">
+                        Monitor volunteer access history, authentication logs, and login attempts.
+                    </p>
+                </div>
+                <a href="/logins" class="btn-portal btn-audit">View Login Logs</a>
+            </div>
+            {% endif %}
         </div>
     </div>
 
