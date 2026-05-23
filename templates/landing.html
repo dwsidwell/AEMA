@@ -354,6 +354,38 @@
             background-color: #b91c1c;
             transform: translateY(-1px);
         }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 3.5rem 0 2rem 0;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 600;
+        }
+
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+            opacity: 0.5;
+        }
+
+        .section-divider:not(:empty)::before {
+            margin-right: 1.5rem;
+        }
+
+        .section-divider:not(:empty)::after {
+            margin-left: 1.5rem;
+        }
+
+        .grid-lead {
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -391,6 +423,7 @@
             </div>
         </header>
 
+        <!-- Section 1: Volunteer Tools (Everyone) -->
         <div class="grid">
             <div class="card card-iar">
                 <div>
@@ -411,18 +444,6 @@
                 </div>
                 <a href="/gsar" class="btn-portal btn-gsar">View Continuing Ed</a>
             </div>
-
-            {% if is_admin %}
-            <div class="card card-lead">
-                <div>
-                    <h2 class="card-title">GSAR Team Lead</h2>
-                    <p class="card-description">
-                        Access the GSAR Team Leadership panel to view training hours summaries, completions, and logs for all roster members.
-                    </p>
-                </div>
-                <a href="/gsar-lead" class="btn-portal btn-lead">Open Lead Dashboard</a>
-            </div>
-            {% endif %}
 
             <div class="card card-links">
                 <div>
@@ -452,6 +473,26 @@
                     </ul>
                 </div>
             </div>
+        </div>
+
+        <!-- Section 2: Leadership Panels (Admins & Sidwell Only) -->
+        {% if is_admin or is_sidwell %}
+        <div class="section-divider">
+            <span>Leadership & Administration</span>
+        </div>
+
+        <div class="grid grid-lead">
+            {% if is_admin %}
+            <div class="card card-lead">
+                <div>
+                    <h2 class="card-title">GSAR Team Lead</h2>
+                    <p class="card-description">
+                        Access the GSAR Team Leadership panel to view training hours summaries, completions, and logs for all roster members.
+                    </p>
+                </div>
+                <a href="/gsar-lead" class="btn-portal btn-lead">Open Lead Dashboard</a>
+            </div>
+            {% endif %}
 
             {% if is_sidwell %}
             <div class="card card-audit">
@@ -465,6 +506,7 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
     </div>
 
     <script>
