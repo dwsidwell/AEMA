@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Newsletters - Volunteer Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #06b6d4;
+            --primary-hover: #0891b2;
+            --accent-color: #22d3ee;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-tag {
+            background-color: rgba(6, 182, 212, 0.1);
+            color: var(--accent-color);
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto 4rem auto;
+            padding: 0 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin-top: 0;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin-bottom: 0.25rem;
+        }
+
+        .btn-back:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+        }
+
+        .btn-archive-small {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            background-color: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 8px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin-bottom: 0.25rem;
+        }
+
+        .btn-archive-small:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(6, 182, 212, 0.2);
+        }
+
+        /* List Layout Table */
+        .dashboard-section {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            box-sizing: border-box;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 1.1rem 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 1.1rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.015);
+        }
+
+        .cell-date {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        .cell-title {
+            font-weight: 500;
+        }
+
+        .title-with-icon {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .pdf-icon-inline {
+            width: 1.3rem;
+            height: 1.3rem;
+            color: var(--primary-color);
+            flex-shrink: 0;
+        }
+
+        .btn-open-list {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            background-color: rgba(6, 182, 212, 0.08);
+            color: var(--accent-color);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            gap: 0.35rem;
+        }
+
+        .btn-open-list:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-open-list svg {
+            width: 0.95rem;
+            height: 0.95rem;
+            fill: currentColor;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 5rem 2rem;
+            background-color: var(--surface-color);
+            border: 1px dashed var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .empty-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.25rem;
+            color: var(--border-color);
+        }
+
+        .empty-state h3 {
+            font-size: 1.3rem;
+            color: var(--text-main);
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            max-width: 450px;
+            margin: 0 auto 1.5rem auto;
+            line-height: 1.5;
+        }
+
+        /* Loading Overlay styling */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Fetching Newsletters...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <div class="navbar-user">
+            <span class="user-tag">{{ user_name }}</span>
+            <a href="/profile" class="btn-nav-outline">Profile</a>
+            <a href="/" class="btn-nav-outline">Home</a>
+            <a href="/logout" class="btn-nav-outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <div style="flex: 1; min-width: 280px;">
+                <h1>Volunteer Newsletters</h1>
+                <p class="subtitle">Stay updated with monthly announcements.</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <a href="{{ onedrive_url }}" target="_blank" rel="noopener noreferrer" class="btn-archive-small">
+                    OneDrive Archive ↗
+                </a>
+                <a href="/" class="btn-back">&larr; Back to Portal</a>
+            </div>
+        </header>
+
+        <!-- Newsletters Table List -->
+        {% if newsletters %}
+            <div class="dashboard-section">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 20%">Date</th>
+                                <th style="width: 60%">Newsletter</th>
+                                <th style="width: 20%; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for n in newsletters %}
+                            <tr>
+                                <td class="cell-date">{{ n.date }}</td>
+                                <td class="cell-title">
+                                    <div class="title-with-icon">
+                                        <svg class="pdf-icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                            <polyline points="14 2 14 8 20 8"/>
+                                            <line x1="16" y1="13" x2="8" y2="13"/>
+                                            <line x1="16" y1="17" x2="8" y2="17"/>
+                                            <line x1="10" y1="9" x2="8" y2="9"/>
+                                        </svg>
+                                        <span>{{ n.title }}</span>
+                                    </div>
+                                </td>
+                                <td style="text-align: right;">
+                                    <a href="{{ n.url }}" target="_blank" rel="noopener noreferrer" class="btn-open-list">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                            <polyline points="15 3 21 3 21 9"/>
+                                            <line x1="10" y1="14" x2="21" y2="3"/>
+                                        </svg>
+                                        Open PDF ↗
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📁</div>
+                <h3>No Cached Newsletters Found</h3>
+                <p>The newsletters list is currently empty. You can browse and open all newsletters directly via our shared OneDrive folder archive.</p>
+                <a href="{{ onedrive_url }}" target="_blank" rel="noopener noreferrer" class="btn-onedrive">Open OneDrive Folder ↗</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Trigger loading screen on navbar and back clicks
+        document.querySelectorAll('.btn-nav-outline, .btn-back, .btn-archive-small').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // If opening external tab, do not show loading overlay
+                if (btn.getAttribute('target') === '_blank') return;
+                document.getElementById('loadingOverlay').style.display = 'flex';
+            });
+        });
+
+        // Hide loading screen when restoring page from back-forward cache
+        window.addEventListener('pageshow', function(event) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

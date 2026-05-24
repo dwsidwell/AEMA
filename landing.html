@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Portal - IamResponding & GSAR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary-color: #8b5cf6;
+            --secondary-hover: #7c3aed;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-tag {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 1.5rem auto;
+            padding: 0 2rem;
+            flex-grow: 1;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .portal-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+            background-color: rgba(30, 41, 59, 0.2);
+            padding: 1.25rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        @media (min-width: 640px) {
+            .portal-header {
+                flex-direction: row;
+                text-align: left;
+                align-items: center;
+                gap: 2rem;
+                padding: 1.5rem;
+            }
+        }
+
+        .header-text h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 0 0 0.25rem 0;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-text p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin: 0;
+            max-width: 650px;
+            line-height: 1.4;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
+
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.25rem 1.25rem;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4), 0 0 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            opacity: 0.7;
+        }
+
+        .card-iar::before {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        }
+
+        .card-gsar::before {
+            background: linear-gradient(90deg, #8b5cf6, #d8b4fe);
+        }
+
+        .card-newsletters::before {
+            background: linear-gradient(90deg, #06b6d4, #0891b2);
+        }
+
+        .card-lead::before {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .card-description {
+            color: var(--text-muted);
+            line-height: 1.5;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            flex-grow: 1;
+        }
+
+        .btn-portal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.7rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn-iar {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-iar:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-gsar {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-gsar:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-newsletters {
+            background-color: #06b6d4;
+            color: white;
+        }
+
+        .btn-newsletters:hover {
+            background-color: #0891b2;
+            transform: translateY(-1px);
+        }
+
+        .btn-lead {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-lead:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+        }
+
+        .aema-logo {
+            max-height: 75px;
+            width: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        /* Loading Overlay styling */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-links::before {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .link-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .link-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .link-item:hover {
+            background-color: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.4);
+            transform: translateX(4px);
+            color: #fbbf24;
+        }
+
+        .link-arrow {
+            transition: transform 0.2s ease;
+            color: var(--text-muted);
+        }
+
+        .link-item:hover .link-arrow {
+            transform: translateX(2px);
+            color: #fbbf24;
+        }
+
+        .card-audit::before {
+            background: linear-gradient(90deg, #dc2626, #f87171);
+        }
+
+        .btn-audit {
+            background-color: #dc2626;
+            color: white;
+        }
+
+        .btn-audit:hover {
+            background-color: #b91c1c;
+            transform: translateY(-1px);
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 2.25rem 0 1.25rem 0;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 600;
+        }
+
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+            opacity: 0.5;
+        }
+
+        .section-divider:not(:empty)::before {
+            margin-right: 1.5rem;
+        }
+
+        .section-divider:not(:empty)::after {
+            margin-left: 1.5rem;
+        }
+
+        .grid-lead {
+            margin-top: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Portal...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <div class="navbar-user">
+            <span class="user-tag">{{ session.get('last_name') }} ({{ session.get('victor_number') }})</span>
+            <a href="/profile" class="btn-nav-outline">Profile</a>
+            <a href="/logout" class="btn-nav-outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-message" style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--success-color); padding: 1rem; border-radius: 8px; margin-bottom: 2rem; text-align: center; animation: fadeInUp 0.5s ease-out; font-weight: 500;">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <header class="portal-header">
+            <img src="/assets/AEMA_Logo.jpg" alt="AEMA Logo" class="aema-logo">
+            <div class="header-text">
+                <h1>Volunteer Portal</h1>
+                <p>Welcome to the main emergency and training portal. Select one of the sections below to proceed.</p>
+            </div>
+        </header>
+
+        <!-- Section 1: Volunteer Tools (Everyone) -->
+        <div class="grid">
+            <div class="card card-iar">
+                <div>
+                    <h2 class="card-title">IAR Event Dashboard</h2>
+                    <p class="card-description">
+                        View upcoming volunteer events, check real-time responder attendance responses, and export calendar schedule details.
+                    </p>
+                </div>
+                <a href="/iar" class="btn-portal btn-iar">Open IAR Dashboard</a>
+            </div>
+
+            <div class="card card-gsar">
+                <div>
+                    <h2 class="card-title">GSAR Continuing Ed</h2>
+                    <p class="card-description">
+                        Monitor your Search and Rescue continuing training progress. View total accumulated hours, completion logs, and breakdown statistics.
+                    </p>
+                </div>
+                <a href="/gsar" class="btn-portal btn-gsar">View Continuing Ed</a>
+            </div>
+
+            <div class="card card-newsletters">
+                <div>
+                    <h2 class="card-title">Newsletters</h2>
+                    <p class="card-description">
+                        Access monthly volunteer newsletters.
+                    </p>
+                    {% if latest_newsletter %}
+                    <div style="margin-top: 0.75rem; margin-bottom: 1.25rem;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Latest:</span>
+                        <a href="{{ latest_newsletter.url }}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--accent-color)'">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 1rem; height: 1rem; flex-shrink: 0; color: var(--primary-color);">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <line x1="10" y1="9" x2="8" y2="9"/>
+                            </svg>
+                            <span>{{ latest_newsletter.title }} ↗</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <a href="/newsletters" class="btn-portal btn-newsletters">View All Newsletters</a>
+            </div>
+
+            <div class="card card-links">
+                <div>
+                    <h2 class="card-title">Important Links</h2>
+                    <p class="card-description" style="margin-bottom: 1.5rem;">
+                        Quick access to external AEMA forms, team logs, and resource directories.
+                    </p>
+                    <ul class="link-list">
+                        <li>
+                            <a href="https://bit.ly/aemahours" target="_blank" rel="noopener noreferrer" class="link-item">
+                                <span class="link-text">Record Hours</span>
+                                <span class="link-arrow">&rarr;</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://docs.google.com/forms/d/e/1FAIpQLScPPWhXBHybP4VpHpAGIy2yEwirDysq2_X3i2BHFXHf63Twqg/viewform" target="_blank" rel="noopener noreferrer" class="link-item">
+                                <span class="link-text">Record GSAR Continuing Ed</span>
+                                <span class="link-arrow">&rarr;</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://aurorailorg-my.sharepoint.com/:f:/g/personal/emermgmt_aurora_il_us/IgDpaLc7s9TtQbbXRsacFkvlAU78BNWiTq0heUiQdQve8fQ?e=5%3AIFN7Sk" target="_blank" rel="noopener noreferrer" class="link-item">
+                                <span class="link-text">AEMA OneDrive</span>
+                                <span class="link-arrow">&rarr;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Leadership Panels (Admins & Sidwell Only) -->
+        {% if is_admin or is_sidwell %}
+        <div class="section-divider">
+            <span>Leadership & Administration</span>
+        </div>
+
+        <div class="grid grid-lead">
+            {% if is_admin %}
+            <div class="card card-lead">
+                <div>
+                    <h2 class="card-title">GSAR Team Lead</h2>
+                    <p class="card-description">
+                        Access the GSAR Team Leadership panel to view training hours summaries, completions, and logs for all roster members.
+                    </p>
+                </div>
+                <a href="/gsar-lead" class="btn-portal btn-lead">Open Lead Dashboard</a>
+            </div>
+            {% endif %}
+
+            {% if is_sidwell %}
+            <div class="card card-audit">
+                <div>
+                    <h2 class="card-title">Login History</h2>
+                    <p class="card-description">
+                        Monitor volunteer access history, authentication logs, and login attempts.
+                    </p>
+                </div>
+                <a href="/logins" class="btn-portal btn-audit">View Login Logs</a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.querySelectorAll('.btn-portal, .btn-nav-outline').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                // Show loading screen
+                document.getElementById('loadingOverlay').style.display = 'flex';
+            });
+        });
+
+        // Hide loading screen when restoring page from back-forward cache
+        window.addEventListener('pageshow', function(event) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
