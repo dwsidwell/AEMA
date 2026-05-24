@@ -45,7 +45,13 @@ else:
     logger.warning("Grafana Loki credentials not fully configured. Logging to console only.")
 
 # User Registry Helper Functions
-USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
+DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
+if DATA_DIR != os.path.dirname(os.path.abspath(__file__)):
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Failed to create DATA_DIR {DATA_DIR}: {e}")
+USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 
 def load_users():
     if not os.path.exists(USERS_FILE):
@@ -95,7 +101,7 @@ def save_users(users):
         return False
 
 # Login Audit Tracking Helpers
-LOGINS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logins.json')
+LOGINS_FILE = os.path.join(DATA_DIR, 'logins.json')
 
 def log_login_event(last_name, victor_number, ip_address, status):
     chicago_tz = ZoneInfo("America/Chicago")
