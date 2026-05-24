@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IamResponding Event Viewer</title>
+    <title>Admin View for IAR Events</title>
     <!-- Use Inter font for a modern look -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -391,7 +391,7 @@
 <div class="container">
     <header class="dashboard-header">
         <div class="header-title">
-            <h1>Event Viewer</h1>
+            <h1>Admin View for IAR Events</h1>
             <p class="subtitle">Securely fetching your IamResponding events</p>
         </div>
         <a href="/" class="btn-back">&larr; Back to Portal</a>
@@ -434,6 +434,16 @@
                     <button type="button" class="btn-secondary" id="clearBtn" style="margin-top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Clear Saved Credentials</button>
                 </div>
             </div>
+
+            <div id="filterContainer" style="display: none; margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <label for="attendeeFilter">Filter by Attendee</label>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <select id="attendeeFilter" style="flex: 1;">
+                        <option value="All">All Attendees</option>
+                    </select>
+                    <button type="button" class="btn-success" id="exportBtn" style="white-space: nowrap;">Export to Excel</button>
+                </div>
+            </div>
         </form>
 
         <div id="statusMessage" class="status-message"></div>
@@ -464,10 +474,18 @@
             </tbody>
         </table>
     </div>
+
+    <div class="card" id="summaryCard" style="display: none; margin-top: 2rem;">
+        <h3 style="margin-top: 0; margin-bottom: 1.5rem; color: var(--text-main);">Attendee Summary</h3>
+        <div id="summaryContent" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+            <!-- Summary blocks will be populated here -->
+        </div>
+    </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const isAdmin = {{ 'true' if is_admin else 'false' }};
         const form = document.getElementById('credentialsForm');
         const agencyInput = document.getElementById('agency');
         const usernameInput = document.getElementById('username');
@@ -476,12 +494,17 @@
         const fetchBtn = document.getElementById('fetchBtn');
         const clearBtn = document.getElementById('clearBtn');
         const clearBtnContainer = document.getElementById('clearBtnContainer');
+        const attendeeFilter = document.getElementById('attendeeFilter');
+        const filterContainer = document.getElementById('filterContainer');
         const statusMessage = document.getElementById('statusMessage');
         const resultsContainer = document.getElementById('resultsContainer');
         const tbody = document.querySelector('#eventsTable tbody');
+        const summaryCard = document.getElementById('summaryCard');
+        const summaryContent = document.getElementById('summaryContent');
         const debugFlag = document.getElementById('debugFlag');
         const urlCard = document.getElementById('urlCard');
         const urlContent = document.getElementById('urlContent');
+        const exportBtn = document.getElementById('exportBtn');
 
         let lastUrls = [];
         let lastFetchedEvents = [];
@@ -525,7 +548,9 @@
             passwordInput.value = '';
             daysInput.value = '10';
             clearBtnContainer.style.display = 'none';
+            filterContainer.style.display = 'none';
             resultsContainer.style.display = 'none';
+            summaryCard.style.display = 'none';
             urlCard.style.display = 'none';
             lastUrls = [];
             lastFetchedEvents = [];
@@ -612,7 +637,9 @@
         async function fetchEvents(agency, username, password, days) {
             showStatus('loading', 'Authenticating and fetching events... This may take a moment.');
             resultsContainer.style.display = 'none';
+            summaryCard.style.display = 'none';
             urlCard.style.display = 'none';
+            filterContainer.style.display = 'none';
             lastUrls = [];
             fetchBtn.disabled = true;
 
@@ -640,6 +667,7 @@
                 }
 
                 renderTable(data.events);
+                updateAttendeeDropdown(data.events);
                 showStatus('', '');
             } catch (error) {
                 showStatus('error', error.message);
@@ -648,6 +676,55 @@
             }
         }
 
+        function updateAttendeeDropdown(events) {
+            attendeeFilter.innerHTML = '<option value="All">All Attendees</option>';
+            if (!events || events.length === 0) {
+                filterContainer.style.display = 'none';
+                return;
+            }
+
+            const uniqueAttendees = new Set();
+            events.forEach(event => {
+                if (event.attendees) {
+                    event.attendees.forEach(a => {
+                        uniqueAttendees.add(getAttendeeName(a));
+                    });
+                }
+            });
+
+            if (uniqueAttendees.size > 0) {
+                const sortedAttendees = Array.from(uniqueAttendees).sort((a, b) => a.localeCompare(b));
+                sortedAttendees.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    attendeeFilter.appendChild(option);
+                });
+                filterContainer.style.display = 'block';
+                attendeeFilter.value = 'All'; // Reset on new fetch
+            } else {
+                filterContainer.style.display = 'none';
+            }
+        }
+
+        attendeeFilter.addEventListener('change', (e) => {
+            const selected = e.target.value;
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                if (selected === 'All') {
+                    row.style.display = '';
+                } else {
+                    const tags = row.querySelectorAll('.attendee-tag');
+                    let found = false;
+                    tags.forEach(tag => {
+                        if (tag.textContent === selected) {
+                            found = true;
+                        }
+                    });
+                    row.style.display = found ? '' : 'none';
+                }
+            });
+        });
 
         function downloadICS(event) {
             const formatICSDate = (dateStr) => {
@@ -738,16 +815,85 @@ END:VCALENDAR`;
             return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}`;
         }
 
+        exportBtn.addEventListener('click', () => {
+            if (!lastFetchedEvents || lastFetchedEvents.length === 0) return;
+            
+            const selected = attendeeFilter.value;
+            let eventsToExport = lastFetchedEvents;
+            
+            if (selected !== 'All') {
+                eventsToExport = lastFetchedEvents.filter(e => {
+                    return e.attendees && e.attendees.some(a => getAttendeeName(a) === selected);
+                });
+            }
 
+            const escapeCSV = (str) => {
+                if (str == null) return '""';
+                const s = String(str).replace(/"/g, '""');
+                return `"${s}"`;
+            };
+
+            const formatForExport = (dateString) => {
+                if (!dateString) return '';
+                try {
+                    const d = new Date(dateString);
+                    if (isNaN(d.getTime())) return dateString;
+                    return d.toLocaleString(); 
+                } catch (err) {
+                    return dateString;
+                }
+            };
+
+            const headers = ['Event Start', 'Event End', 'Subject', 'Description', 'Attendees'];
+            let csvContent = headers.map(escapeCSV).join(',') + '\n';
+
+            eventsToExport.forEach(e => {
+                const start = formatForExport(e.eventStart);
+                const end = e.eventEnd ? formatForExport(e.eventEnd) : '';
+                const subject = e.subject || '';
+                const desc = e.description || '';
+                
+                let attendeesStr = '';
+                if (e.attendees && e.attendees.length > 0) {
+                    const sorted = [...e.attendees].sort((a, b) => {
+                        const nameA = (a.member && a.member.name) ? a.member.name.toLowerCase() : '';
+                        const nameB = (b.member && b.member.name) ? b.member.name.toLowerCase() : '';
+                        return nameA.localeCompare(nameB);
+                    });
+                    attendeesStr = sorted.map(a => getAttendeeName(a)).join(', ');
+                }
+
+                const row = [start, end, subject, desc, attendeesStr];
+                csvContent += row.map(escapeCSV).join(',') + '\n';
+            });
+
+            // Add BOM so Excel opens UTF-8 properly
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            const fileName = selected === 'All' ? `events_all_${dateStr}.csv` : `events_${selected.replace(/\s+/g, '_')}_${dateStr}.csv`;
+            
+            link.setAttribute('download', fileName);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
 
         function renderTable(events) {
             tbody.innerHTML = '';
+            summaryCard.style.display = 'none';
             
             if (!events || events.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 2rem; color: var(--text-muted);">No events found for the next ' + daysInput.value + ' days.</td></tr>';
                 resultsContainer.style.display = 'block';
                 return;
             }
+
+            const attendeeCounts = {};
 
             events.forEach(event => {
                 const tr = document.createElement('tr');
@@ -886,10 +1032,59 @@ END:VCALENDAR`;
                         `;
                         docPill.appendChild(docLink);
                         
+                        if (isAdmin) {
+                            const delBtn = document.createElement('button');
+                            delBtn.style.background = 'none';
+                            delBtn.style.border = 'none';
+                            delBtn.style.color = 'var(--error-color)';
+                            delBtn.style.cursor = 'pointer';
+                            delBtn.style.padding = '0';
+                            delBtn.style.display = 'inline-flex';
+                            delBtn.style.alignItems = 'center';
+                            delBtn.style.marginLeft = '4px';
+                            delBtn.title = 'Delete Document';
+                            delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--error-color);"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+                            
+                            delBtn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete ${doc.filename}?`)) {
+                                    deleteDocument(event.id, doc.filename, docPill);
+                                }
+                            });
+                            docPill.appendChild(delBtn);
+                        }
+                        
                         docsContainer.appendChild(docPill);
                     });
                     
                     tdSubject.appendChild(docsContainer);
+                }
+
+                // Render admin tools
+                if (isAdmin) {
+                    const adminTools = document.createElement('div');
+                    adminTools.style.marginTop = '0.75rem';
+                    adminTools.style.display = 'flex';
+                    adminTools.style.gap = '0.5rem';
+                    
+                    const uploadBtn = document.createElement('button');
+                    uploadBtn.className = 'btn-secondary';
+                    uploadBtn.style.padding = '0.25rem 0.5rem';
+                    uploadBtn.style.fontSize = '0.75rem';
+                    uploadBtn.style.display = 'inline-flex';
+                    uploadBtn.style.alignItems = 'center';
+                    uploadBtn.style.gap = '4px';
+                    uploadBtn.style.width = 'fit-content';
+                    uploadBtn.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-color);"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        <span>Upload Document</span>
+                    `;
+                    uploadBtn.addEventListener('click', () => {
+                        openUploadModal(event.id, event.subject);
+                    });
+                    adminTools.appendChild(uploadBtn);
+                    tdSubject.appendChild(adminTools);
                 }
 
                 // Attendees
@@ -904,6 +1099,14 @@ END:VCALENDAR`;
                     
                     event.attendees.forEach(a => {
                         const fullName = getAttendeeName(a);
+                        
+                        // Add to counts for summary
+                        const sortName = (a.member && a.member.name) ? a.member.name : fullName;
+                        if (!attendeeCounts[fullName]) {
+                            attendeeCounts[fullName] = { count: 0, sortName: sortName.toLowerCase() };
+                        }
+                        attendeeCounts[fullName].count++;
+
                         const span = document.createElement('span');
                         span.className = 'attendee-tag';
                         span.textContent = fullName;
@@ -925,12 +1128,216 @@ END:VCALENDAR`;
             });
 
             resultsContainer.style.display = 'block';
+            
+            // Render Attendee Summary
+            const summaryKeys = Object.keys(attendeeCounts);
+            if (summaryKeys.length > 0) {
+                summaryContent.innerHTML = '';
+                summaryCard.style.display = 'block';
+                
+                // Sort summary alphabetically by first name
+                summaryKeys.sort((a, b) => attendeeCounts[a].sortName.localeCompare(attendeeCounts[b].sortName));
+                
+                summaryKeys.forEach(name => {
+                    const count = attendeeCounts[name].count;
+                    const div = document.createElement('div');
+                    div.style.padding = '1rem';
+                    div.style.backgroundColor = 'rgba(15, 23, 42, 0.4)';
+                    div.style.borderRadius = '8px';
+                    div.style.border = '1px solid var(--border-color)';
+                    div.style.display = 'flex';
+                    div.style.flexDirection = 'column';
+                    div.innerHTML = `
+                        <strong style="font-size: 1.05rem;">${name}</strong>
+                        <span style="color: var(--primary-color); font-weight: 500; font-size: 0.95rem; margin-top: 0.25rem;">
+                            ${count} event${count > 1 ? 's' : ''}
+                        </span>
+                    `;
+                    summaryContent.appendChild(div);
+                });
+            }
         }
 
+        // --- Document Administration Javascript (Admins Only) ---
+        let openUploadModal = null;
+        let deleteDocument = null;
+
+        if (isAdmin) {
+            const uploadModal = document.getElementById('uploadModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const uploadForm = document.getElementById('uploadForm');
+            const uploadEventId = document.getElementById('uploadEventId');
+            const modalEventSubject = document.getElementById('modalEventSubject');
+            const uploadFile = document.getElementById('uploadFile');
+            const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+            const uploadProgressBar = document.getElementById('uploadProgressBar');
+            const uploadPercent = document.getElementById('uploadPercent');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadSubmitBtn = document.getElementById('uploadSubmitBtn');
+
+            openUploadModal = function(eventId, eventSubject) {
+                uploadEventId.value = eventId;
+                modalEventSubject.textContent = eventSubject;
+                uploadFile.value = '';
+                uploadProgressContainer.style.display = 'none';
+                uploadProgressBar.style.width = '0%';
+                uploadPercent.textContent = '0%';
+                uploadStatus.style.display = 'none';
+                uploadSubmitBtn.disabled = false;
+                uploadModal.style.display = 'flex';
+            }
+
+            closeModalBtn.addEventListener('click', () => {
+                uploadModal.style.display = 'none';
+            });
+
+            uploadModal.addEventListener('click', (e) => {
+                if (e.target === uploadModal) {
+                    uploadModal.style.display = 'none';
+                }
+            });
+
+            deleteDocument = async function(eventId, filename, pillElement) {
+                try {
+                    const response = await fetch('/admin/delete-document', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ event_id: eventId, filename: filename })
+                    });
+                    
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        pillElement.remove();
+                        const event = lastFetchedEvents.find(e => e.id == eventId);
+                        if (event && event.documents) {
+                            event.documents = event.documents.filter(d => d.filename !== filename);
+                        }
+                    } else {
+                        alert(data.error || 'Failed to delete document');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('An error occurred while deleting the document.');
+                }
+            }
+
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const file = uploadFile.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('event_id', uploadEventId.value);
+                formData.append('file', file);
+
+                uploadProgressContainer.style.display = 'block';
+                uploadStatus.style.display = 'none';
+                uploadSubmitBtn.disabled = true;
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/admin/upload-document', true);
+
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = Math.round((event.loaded / event.total) * 100);
+                        uploadProgressBar.style.width = percentComplete + '%';
+                        uploadPercent.textContent = percentComplete + '%';
+                    }
+                };
+
+                xhr.onload = () => {
+                    uploadProgressContainer.style.display = 'none';
+                    if (xhr.status === 200) {
+                        try {
+                            const res = JSON.parse(xhr.responseText);
+                            if (res.success) {
+                                uploadStatus.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                                uploadStatus.style.color = 'var(--success-color)';
+                                uploadStatus.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+                                uploadStatus.textContent = 'File uploaded successfully!';
+                                uploadStatus.style.display = 'block';
+                                
+                                const eventId = uploadEventId.value;
+                                const eventObj = lastFetchedEvents.find(ev => ev.id == eventId);
+                                if (eventObj) {
+                                    if (!eventObj.documents) eventObj.documents = [];
+                                    eventObj.documents = eventObj.documents.filter(d => d.filename !== res.filename);
+                                    eventObj.documents.push({
+                                        filename: res.filename,
+                                        file_size: res.file_size
+                                    });
+                                }
+                                
+                                setTimeout(() => {
+                                    uploadModal.style.display = 'none';
+                                    renderTable(lastFetchedEvents);
+                                }, 1000);
+                            } else {
+                                showUploadError(res.error || 'Upload failed');
+                            }
+                        } catch (err) {
+                            showUploadError('Error parsing server response');
+                        }
+                    } else {
+                        try {
+                            const res = JSON.parse(xhr.responseText);
+                            showUploadError(res.error || 'Upload failed');
+                        } catch (err) {
+                            showUploadError(`Upload failed with status code ${xhr.status}`);
+                        }
+                    }
+                };
+
+                xhr.onerror = () => {
+                    uploadProgressContainer.style.display = 'none';
+                    showUploadError('Network error during upload.');
+                };
+
+                xhr.send(formData);
+            });
+
+            function showUploadError(msg) {
+                uploadStatus.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                uploadStatus.style.color = 'var(--error-color)';
+                uploadStatus.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                uploadStatus.textContent = msg;
+                uploadStatus.style.display = 'block';
+                uploadSubmitBtn.disabled = false;
+            }
+        }
     });
 </script>
 
+<!-- Upload Document Modal -->
+<div id="uploadModal" class="modal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 500px; padding: 2rem; box-sizing: border-box; position: relative; margin: auto; animation: fadeInUp 0.3s ease-out; border: 1px solid var(--border-color); border-radius: 16px; background-color: var(--surface-color);">
+        <button id="closeModalBtn" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        <h3 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 1.4rem; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Upload Document</h3>
+        <p id="modalEventSubject" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0; margin-bottom: 1.5rem; word-break: break-all; font-weight: 500;"></p>
+        
+        <form id="uploadForm">
+            <input type="hidden" id="uploadEventId" name="event_id">
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="uploadFile" style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Select Document File</label>
+                <input type="file" id="uploadFile" name="file" required style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(15, 23, 42, 0.6); color: var(--text-main); font-size: 0.95rem; box-sizing: border-box;">
+            </div>
+            
+            <div id="uploadProgressContainer" style="display: none; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.3rem;">
+                    <span>Uploading...</span>
+                    <span id="uploadPercent">0%</span>
+                </div>
+                <div style="width: 100%; height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                    <div id="uploadProgressBar" style="width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.1s ease;"></div>
+                </div>
+            </div>
 
+            <div id="uploadStatus" class="status-message" style="margin-bottom: 1.5rem; display: none;"></div>
+            
+            <button type="submit" class="btn-primary" id="uploadSubmitBtn">Upload File</button>
+        </form>
+    </div>
+</div>
 
 </body>
 </html>

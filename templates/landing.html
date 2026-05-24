@@ -177,6 +177,10 @@
             background: linear-gradient(90deg, #3b82f6, #60a5fa);
         }
 
+        .card-iar-admin::before {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
         .card-gsar::before {
             background: linear-gradient(90deg, #8b5cf6, #d8b4fe);
         }
@@ -369,6 +373,20 @@
             transform: translateY(-1px);
         }
 
+        .card-users-admin::before {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .btn-users-admin {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-users-admin:hover {
+            background-color: #d97706;
+            transform: translateY(-1px);
+        }
+
         .section-divider {
             display: flex;
             align-items: center;
@@ -530,6 +548,26 @@
                     </p>
                 </div>
                 <a href="/gsar-lead" class="btn-portal btn-lead">Open Lead Dashboard</a>
+            </div>
+
+            <div class="card card-iar-admin">
+                <div>
+                    <h2 class="card-title">IAR Admin Dashboard</h2>
+                    <p class="card-description">
+                        Manage event documents (upload and delete), filter attendee responses, export spreadsheets, and view attendance summaries.
+                    </p>
+                </div>
+                <a href="/iar-admin" class="btn-portal btn-iar">Open IAR Admin</a>
+            </div>
+
+            <div class="card card-users-admin">
+                <div>
+                    <h2 class="card-title">User Administration</h2>
+                    <p class="card-description">
+                        Manage volunteer accounts: create new profiles, edit active details, reset passwords, or activate/deactivate portal access.
+                    </p>
+                </div>
+                <a href="/admin/users" class="btn-portal btn-users-admin">Manage Users</a>
             </div>
             {% endif %}
 
