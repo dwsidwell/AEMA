@@ -54,6 +54,31 @@ if DATA_DIR != os.path.dirname(os.path.abspath(__file__)):
         logger.error(f"Failed to create DATA_DIR {DATA_DIR}: {e}")
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 
+import base64
+
+def encrypt_password(password, key):
+    if not password:
+        return ""
+    key_bytes = key.encode('utf-8')
+    pw_bytes = password.encode('utf-8')
+    encrypted = bytearray(len(pw_bytes))
+    for i in range(len(pw_bytes)):
+        encrypted[i] = pw_bytes[i] ^ key_bytes[i % len(key_bytes)]
+    return base64.b64encode(encrypted).decode('utf-8')
+
+def decrypt_password(enc_password, key):
+    if not enc_password:
+        return ""
+    try:
+        key_bytes = key.encode('utf-8')
+        enc_bytes = base64.b64decode(enc_password.encode('utf-8'))
+        decrypted = bytearray(len(enc_bytes))
+        for i in range(len(enc_bytes)):
+            decrypted[i] = enc_bytes[i] ^ key_bytes[i % len(key_bytes)]
+        return decrypted.decode('utf-8')
+    except Exception:
+        return ""
+
 def load_users():
     if not os.path.exists(USERS_FILE):
         # Generate initial default users (Sidwell, Schur, Reese)
@@ -63,21 +88,33 @@ def load_users():
                 "victor_number": "V31",
                 "password_hash": generate_password_hash("password123"),
                 "is_default": True,
-                "is_admin": True
+                "is_admin": True,
+                "IAR_memberId": "",
+                "IAR_Agency": "",
+                "IAR_Username": "",
+                "IAR_Password": ""
             },
             "schur_v22": {
                 "last_name": "Schur",
                 "victor_number": "V22",
                 "password_hash": generate_password_hash("password123"),
                 "is_default": True,
-                "is_admin": True
+                "is_admin": True,
+                "IAR_memberId": "",
+                "IAR_Agency": "",
+                "IAR_Username": "",
+                "IAR_Password": ""
             },
             "reese_v2": {
                 "last_name": "Reese",
                 "victor_number": "V2",
                 "password_hash": generate_password_hash("password123"),
                 "is_default": True,
-                "is_admin": True
+                "is_admin": True,
+                "IAR_memberId": "",
+                "IAR_Agency": "",
+                "IAR_Username": "",
+                "IAR_Password": ""
             }
         }
         try:
@@ -95,17 +132,22 @@ def load_users():
         logger.error(f"Error loading users file: {e}")
         return {}
 
-    # Migration check: Ensure Schur, Sidwell, and Reese are flagged as admins
+    # Migration check: Ensure Schur, Sidwell, and Reese are flagged as admins, and all users have IAR fields
     modified = False
-    for admin_key in ["sidwell_v31", "schur_v22", "reese_v2"]:
-        if admin_key in users:
-            if not users[admin_key].get('is_admin'):
-                users[admin_key]['is_admin'] = True
+    for key, profile in users.items():
+        if key in ["sidwell_v31", "schur_v22", "reese_v2"]:
+            if not profile.get('is_admin'):
+                profile['is_admin'] = True
+                modified = True
+        
+        for field in ["IAR_memberId", "IAR_Agency", "IAR_Username", "IAR_Password"]:
+            if field not in profile:
+                profile[field] = ""
                 modified = True
                 
     if modified:
         save_users(users)
-        logger.info("Migrated initial default users to have is_admin=True in users.json.")
+        logger.info("Migrated user database in users.json to support IAR integration fields.")
         
     return users
 
@@ -145,26 +187,22 @@ def check_user_is_attending(user, attendee_list):
     if not user:
         return False
     
-    iar_first = user.get('iar_first_name') or user.get('first_name', '')
-    iar_last = user.get('iar_last_name') or user.get('last_name', '')
-    
-    iar_first_lower = iar_first.strip().lower()
-    iar_last_lower = iar_last.strip().lower()
-    
+    user_member_id = str(user.get('IAR_memberId', '')).strip()
+    if not user_member_id:
+        return False
+        
     for attendee in attendee_list:
         member = attendee.get('member', {})
-        first = member.get('name', '').strip().lower()
-        last = member.get('lastName', '').strip().lower()
+        member_id = member.get('memberId') or member.get('memberID') or member.get('id')
+        if member_id is None:
+            continue
+            
+        member_id_str = str(member_id).strip()
         response = attendee.get('response')
         
-        # Only match if response == 1 (Attending)
-        if response == 1:
-            if iar_first_lower and iar_last_lower:
-                if first == iar_first_lower and last == iar_last_lower:
-                    return True
-            elif iar_last_lower:
-                if last == iar_last_lower:
-                    return True
+        # Only match if response == 1 (Attending/Yes)
+        if response == 1 and member_id_str == user_member_id:
+            return True
     return False
 
 # Login Audit Tracking Helpers
@@ -445,10 +483,18 @@ def change_password():
     current_user = users.get(user_key, {})
     email = current_user.get('email', '')
     
+    iar_agency = current_user.get('IAR_Agency', '')
+    iar_username = current_user.get('IAR_Username', '')
+    
     if request.method == 'POST':
         new_password = request.form.get('new_password', '')
         confirm_password = request.form.get('confirm_password', '')
         email = request.form.get('email', '').strip()
+        iar_agency_input = request.form.get('iar_agency', '').strip()
+        iar_username_input = request.form.get('iar_username', '').strip()
+        iar_password_input = request.form.get('iar_password', '')
+        
+        is_first_login = bool(session.get('must_change_password'))
         
         if not email:
             error = 'Email address is required'
@@ -462,22 +508,41 @@ def change_password():
             error = 'Password must be at least 6 characters long'
         elif new_password == 'password123':
             error = 'Please choose a password different from the default'
+        elif is_first_login and not iar_agency_input:
+            error = 'IamResponding Agency is required on first login'
+        elif is_first_login and not iar_username_input:
+            error = 'IamResponding Username is required on first login'
+        elif is_first_login and not iar_password_input:
+            error = 'IamResponding Password is required on first login'
         else:
             if user_key in users:
                 users[user_key]['password_hash'] = generate_password_hash(new_password)
                 users[user_key]['is_default'] = False
                 users[user_key]['email'] = email
+                
+                # Save IamResponding credentials
+                if iar_agency_input:
+                    users[user_key]['IAR_Agency'] = iar_agency_input
+                if iar_username_input:
+                    users[user_key]['IAR_Username'] = iar_username_input
+                if iar_password_input:
+                    users[user_key]['IAR_Password'] = encrypt_password(iar_password_input, app.secret_key)
+                    
                 if save_users(users):
                     session.pop('must_change_password', None)
                     session['authenticated'] = True
-                    logger.info(f"Password changed and email saved successfully for {user_key}", extra={"tags": {"event_type": "app_telemetry", "action": "password_changed"}})
+                    logger.info(f"Password changed and IAR credentials saved successfully for {user_key}", extra={"tags": {"event_type": "app_telemetry", "action": "password_changed"}})
                     return redirect(url_for('index'))
                 else:
                     error = 'Failed to save password. Please try again.'
             else:
                 error = 'User not found in registry.'
                 
-    return render_template('change_password.html', error=error, email=email)
+        # Keep inputs for re-rendering on failure
+        iar_agency = iar_agency_input
+        iar_username = iar_username_input
+                
+    return render_template('change_password.html', error=error, email=email, iar_agency=iar_agency, iar_username=iar_username)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -554,10 +619,16 @@ def profile():
     error = None
     success = None
     
+    if request.args.get('error') == 'iar_failed':
+        error = 'Failed to authenticate or fetch events from IamResponding. Please verify and update your IAR Agency, Username, and Password below.'
+        
     if request.method == 'POST':
         first_name = request.form.get('first_name', '').strip()
         email = request.form.get('email', '').strip()
         cell_phone = request.form.get('cell_phone', '').strip()
+        iar_agency_input = request.form.get('iar_agency', '').strip()
+        iar_username_input = request.form.get('iar_username', '').strip()
+        iar_password_input = request.form.get('iar_password', '')
         
         if not first_name:
             error = 'First name is required'
@@ -573,6 +644,10 @@ def profile():
             user['first_name'] = first_name
             user['email'] = email
             user['cell_phone'] = format_us_phone(cell_phone)
+            user['IAR_Agency'] = iar_agency_input
+            user['IAR_Username'] = iar_username_input
+            if iar_password_input:
+                user['IAR_Password'] = encrypt_password(iar_password_input, app.secret_key)
             
             if save_users(users):
                 logger.info(f"Profile updated successfully for {user_key}", extra={"tags": {"event_type": "app_telemetry", "action": "profile_updated"}})
@@ -588,6 +663,9 @@ def profile():
         first_name=user.get('first_name', ''),
         email=user.get('email', ''),
         cell_phone=user.get('cell_phone', ''),
+        iar_member_id=user.get('IAR_memberId', ''),
+        iar_agency=user.get('IAR_Agency', ''),
+        iar_username=user.get('IAR_Username', ''),
         error=error,
         success=success
     )
@@ -1037,15 +1115,25 @@ def get_events():
         logger.warning("Unauthorized access attempt to /api/events", extra={"tags": {"event_type": "app_telemetry"}})
         return jsonify({'error': 'Unauthorized. Please login again.'}), 401
 
-    data = request.json
-    agency = data.get('agency')
-    username = data.get('username')
-    password = data.get('password')
+    data = request.json or {}
     days = data.get('days', 10)
+
+    users = load_users()
+    user_key = session.get('user_key')
+    user = users.get(user_key) if user_key else None
+    
+    agency = ""
+    username = ""
+    password = ""
+    if user:
+        agency = user.get('IAR_Agency', '')
+        username = user.get('IAR_Username', '')
+        enc_password = user.get('IAR_Password', '')
+        password = decrypt_password(enc_password, app.secret_key)
 
     if not all([agency, username, password]):
         logger.error("Scrape failed: Missing credentials", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
-        return jsonify({'error': 'Missing credentials'}), 400
+        return jsonify({'error': 'Please update your IAR credentials in your profile.'}), 400
 
     logger.info(f"Starting scrape for agency: {agency}, days: {days}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_started"}})
     scrape_start_time = time.time()
@@ -1093,13 +1181,13 @@ def get_events():
         
         if event_list_response.status_code != 200:
             logger.error(f"Scrape failed: Event list status code {event_list_response.status_code}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
-            return jsonify({'error': 'Failed to fetch event list. Invalid credentials or API changed.', 'status_code': event_list_response.status_code}), 401
+            return jsonify({'error': 'Please update your IAR credentials in your profile.', 'status_code': event_list_response.status_code}), 401
 
         try:
             events = event_list_response.json()
         except Exception as e:
              logger.error("Scrape failed: Failed to parse event list JSON", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
-             return jsonify({'error': 'Failed to parse event list JSON. Are credentials correct?', 'details': str(e)}), 401
+             return jsonify({'error': 'Please update your IAR credentials in your profile.', 'details': str(e)}), 401
 
         # Step 4: Fetch details for each event
         detailed_events = []
@@ -1111,6 +1199,7 @@ def get_events():
         current_user = users.get(session.get('user_key'))
         last_name = session.get('last_name', '')
         is_admin = session.get('is_admin', False)
+        is_admin_view = data.get('is_admin_view', False) and is_admin
         
         for event in events:
             event_id = event.get('id')
@@ -1149,7 +1238,7 @@ def get_events():
                     if is_attending:
                         attending_ids.append(str(event_id))
                     allowed_docs = []
-                    if is_admin or is_attending:
+                    if is_admin_view or is_attending:
                         allowed_docs = event_docs.get(str(event_id), [])
                     
                     detailed_events.append({
@@ -1441,6 +1530,7 @@ def get_admin_users():
         profile_copy = profile.copy()
         profile_copy['user_key'] = key
         profile_copy.pop('password_hash', None)
+        profile_copy.pop('IAR_Password', None)
         profile_copy['is_active'] = profile_copy.get('is_active', True)
         profile_copy['is_admin'] = profile_copy.get('is_admin', False)
         user_list.append(profile_copy)
@@ -1458,6 +1548,9 @@ def create_admin_user():
     cell_phone = data.get('cell_phone', '').strip()
     iar_first_name = data.get('iar_first_name', '').strip()
     iar_last_name = data.get('iar_last_name', '').strip()
+    iar_member_id = data.get('IAR_memberId', '').strip()
+    iar_agency = data.get('IAR_Agency', '').strip()
+    iar_username = data.get('IAR_Username', '').strip()
     is_admin = bool(data.get('is_admin', False))
     
     if not last_name or not victor_number:
@@ -1476,6 +1569,10 @@ def create_admin_user():
         'cell_phone': cell_phone,
         'iar_first_name': iar_first_name or None,
         'iar_last_name': iar_last_name or None,
+        'IAR_memberId': iar_member_id,
+        'IAR_Agency': iar_agency,
+        'IAR_Username': iar_username,
+        'IAR_Password': '',
         'is_active': True,
         'is_default': True,
         'is_admin': is_admin,
@@ -1505,6 +1602,9 @@ def update_admin_user():
     cell_phone = data.get('cell_phone', '').strip()
     iar_first_name = data.get('iar_first_name', '').strip()
     iar_last_name = data.get('iar_last_name', '').strip()
+    iar_member_id = data.get('IAR_memberId', '').strip()
+    iar_agency = data.get('IAR_Agency', '').strip()
+    iar_username = data.get('IAR_Username', '').strip()
     is_active = data.get('is_active', True)
     is_admin = bool(data.get('is_admin', False))
     
@@ -1532,6 +1632,9 @@ def update_admin_user():
     profile['cell_phone'] = cell_phone
     profile['iar_first_name'] = iar_first_name or None
     profile['iar_last_name'] = iar_last_name or None
+    profile['IAR_memberId'] = iar_member_id
+    profile['IAR_Agency'] = iar_agency
+    profile['IAR_Username'] = iar_username
     profile['is_active'] = is_active
     profile['is_admin'] = is_admin
     
