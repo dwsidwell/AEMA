@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, Response
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, Response, send_from_directory
 import re
 import requests
 from bs4 import BeautifulSoup
@@ -11,6 +11,7 @@ import logging_loki
 from dotenv import load_dotenv
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import csv
 from io import StringIO
 import secrets
@@ -99,6 +100,55 @@ def save_users(users):
     except Exception as e:
         logger.error(f"Error saving users file: {e}")
         return False
+# Event Documents Configuration & Helpers
+EVENT_DOCS_FILE = os.path.join(DATA_DIR, 'event_documents.json')
+EVENT_DOCS_DIR = os.path.join(DATA_DIR, 'event_documents')
+
+def load_event_documents():
+    if not os.path.exists(EVENT_DOCS_FILE):
+        return {}
+    try:
+        with open(EVENT_DOCS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading event documents file: {e}")
+        return {}
+
+def save_event_documents(docs):
+    try:
+        os.makedirs(os.path.dirname(EVENT_DOCS_FILE), exist_ok=True)
+        with open(EVENT_DOCS_FILE, 'w') as f:
+            json.dump(docs, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving event documents file: {e}")
+        return False
+
+def check_user_is_attending(user, attendee_list):
+    if not user:
+        return False
+    
+    iar_first = user.get('iar_first_name') or user.get('first_name', '')
+    iar_last = user.get('iar_last_name') or user.get('last_name', '')
+    
+    iar_first_lower = iar_first.strip().lower()
+    iar_last_lower = iar_last.strip().lower()
+    
+    for attendee in attendee_list:
+        member = attendee.get('member', {})
+        first = member.get('name', '').strip().lower()
+        last = member.get('lastName', '').strip().lower()
+        response = attendee.get('response')
+        
+        # Only match if response == 1 (Attending)
+        if response == 1:
+            if iar_first_lower and iar_last_lower:
+                if first == iar_first_lower and last == iar_last_lower:
+                    return True
+            elif iar_last_lower:
+                if last == iar_last_lower:
+                    return True
+    return False
 
 # Login Audit Tracking Helpers
 LOGINS_FILE = os.path.join(DATA_DIR, 'logins.json')
@@ -511,7 +561,16 @@ def index():
     last_name = session.get('last_name', '')
     is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
     is_sidwell = last_name.lower() == 'sidwell'
-    return render_template('landing.html', is_admin=is_admin, is_sidwell=is_sidwell)
+    
+    latest_newsletter = None
+    try:
+        newsletters = load_newsletters()
+        if newsletters:
+            latest_newsletter = newsletters[0]
+    except Exception as e:
+        logger.error(f"Error loading latest newsletter for homepage: {e}")
+        
+    return render_template('landing.html', is_admin=is_admin, is_sidwell=is_sidwell, latest_newsletter=latest_newsletter)
 
 @app.route('/logins')
 def view_logins():
@@ -541,7 +600,9 @@ def iar_dashboard():
         return redirect(url_for('change_password'))
     if not session.get('authenticated'):
         return redirect(url_for('login'))
-    return render_template('index.html')
+    last_name = session.get('last_name', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    return render_template('index.html', is_admin=is_admin)
 
 @app.route('/gsar')
 def gsar_dashboard():
@@ -991,6 +1052,14 @@ def get_events():
 
         # Step 4: Fetch details for each event
         detailed_events = []
+        attending_ids = []
+        
+        # Load event documents registry and user details for permission checking
+        event_docs = load_event_documents()
+        users = load_users()
+        current_user = users.get(session.get('user_key'))
+        last_name = session.get('last_name', '')
+        is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
         
         for event in events:
             event_id = event.get('id')
@@ -1024,13 +1093,22 @@ def get_events():
                     all_attendees = detail_data.get('eventAttendees', [])
                     attending = [a for a in all_attendees if a.get('response') == 1]
                     
+                    # Check documents permission
+                    is_attending = check_user_is_attending(current_user, all_attendees)
+                    if is_attending:
+                        attending_ids.append(str(event_id))
+                    allowed_docs = []
+                    if is_admin or is_attending:
+                        allowed_docs = event_docs.get(str(event_id), [])
+                    
                     detailed_events.append({
                         'id': event_id,
                         'subject': subject,
                         'eventStart': event_start,
                         'eventEnd': event_end,
                         'description': description,
-                        'attendees': attending
+                        'attendees': attending,
+                        'documents': allowed_docs
                     })
                     
                     # Business Data Logging
@@ -1054,11 +1132,239 @@ def get_events():
         scrape_duration = time.time() - scrape_start_time
         logger.info(f"Scrape completed successfully in {scrape_duration:.2f}s. Fetched {len(detailed_events)} events.", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_completed", "duration_seconds": str(round(scrape_duration, 2)), "events_count": str(len(detailed_events))}})
 
+        session['attending_event_ids'] = attending_ids
         return jsonify({'events': detailed_events, 'urls': urls_called})
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Scrape failed: Network request error - {str(e)}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
         return jsonify({'error': 'Network request failed', 'details': str(e)}), 500
+
+def load_newsletters():
+    sheet_url = os.environ.get('NEWSLETTER_SHEET_URL')
+    if not sheet_url:
+        logger.error("NEWSLETTER_SHEET_URL not set in environment.")
+        return []
+        
+    if 'export?format=csv' not in sheet_url:
+        if '/edit' in sheet_url:
+            sheet_url = sheet_url.split('/edit')[0] + '/export?format=csv'
+        else:
+            sheet_url = sheet_url.rstrip('/') + '/export?format=csv'
+            
+    try:
+        response = requests.get(sheet_url, timeout=10)
+        if response.status_code == 200:
+            csv_content = response.text
+            csv_file = StringIO(csv_content)
+            reader = csv.DictReader(csv_file)
+            
+            newsletters = []
+            onedrive_folder_url = "https://1drv.ms/f/c/8a32438cf94d8484/IgCEhE35jEMyIICK1NYCAAAAAXlioXW5oIRl7PISWmk2bc8?e=PdeCdi"
+            
+            for row in reader:
+                row_cleaned = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+                date_val = row_cleaned.get('date', '')
+                url_val = row_cleaned.get('url', '')
+                
+                title_val = row_cleaned.get('title', '')
+                if not title_val:
+                    name_val = row_cleaned.get('name', '')
+                    if name_val:
+                        if name_val.lower().endswith('.pdf'):
+                            title_val = os.path.splitext(name_val)[0].replace('_', ' ').replace('-', ' ').strip()
+                        else:
+                            title_val = name_val
+                    else:
+                        title_val = f"{date_val} Newsletter"
+                
+                if date_val:
+                    if url_val.startswith('http://') or url_val.startswith('https://'):
+                        link = url_val
+                    elif url_val:
+                        local_path = os.path.join(app.static_folder, 'newsletters', url_val)
+                        if os.path.exists(local_path):
+                            link = f"/assets/newsletters/{url_val}"
+                        else:
+                            link = onedrive_folder_url
+                    else:
+                        link = onedrive_folder_url
+                        
+                    newsletters.append({
+                        'date': date_val,
+                        'title': title_val,
+                        'url': link
+                    })
+            
+            def parse_newsletter_date(n):
+                d_str = n['date'].strip()
+                for fmt in ('%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d', '%Y-%m', '%m-%Y', '%B %Y', '%b %Y'):
+                    try:
+                        return datetime.datetime.strptime(d_str, fmt).date()
+                    except ValueError:
+                        continue
+                return datetime.date.min
+                
+            newsletters.sort(key=parse_newsletter_date, reverse=True)
+            logger.info(f"Successfully loaded {len(newsletters)} newsletters from Google Sheet.")
+            return newsletters
+        else:
+            logger.error(f"Failed to fetch newsletters from Google Sheet: HTTP {response.status_code}")
+    except Exception as e:
+        logger.error(f"Error fetching newsletters from Google Sheet: {e}")
+        
+    return []
+
+@app.route('/newsletters')
+def newsletters_dashboard():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    victor_number = session.get('victor_number', '')
+    
+    newsletters_list = load_newsletters()
+    onedrive_folder_url = "https://1drv.ms/f/c/8a32438cf94d8484/IgCEhE35jEMyIICK1NYCAAAAAXlioXW5oIRl7PISWmk2bc8?e=PdeCdi"
+    
+    return render_template(
+        'newsletters.html',
+        newsletters=newsletters_list,
+        onedrive_url=onedrive_folder_url,
+        user_name=f"{last_name}, {victor_number}"
+    )
+
+@app.route('/admin/upload-document', methods=['POST'])
+def upload_document():
+    if not session.get('authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    last_name = session.get('last_name', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    if not is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    event_id = request.form.get('event_id')
+    if not event_id:
+        return jsonify({'error': 'Missing event_id'}), 400
+        
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    if file:
+        filename = secure_filename(file.filename)
+        
+        # Save file to DATA_DIR/event_documents/<event_id>/
+        dest_dir = os.path.join(EVENT_DOCS_DIR, str(event_id))
+        os.makedirs(dest_dir, exist_ok=True)
+        file.save(os.path.join(dest_dir, filename))
+        
+        # Calculate human-readable file size
+        file_size_bytes = os.path.getsize(os.path.join(dest_dir, filename))
+        if file_size_bytes < 1024:
+            file_size = f"{file_size_bytes} B"
+        elif file_size_bytes < 1024 * 1024:
+            file_size = f"{file_size_bytes / 1024:.1f} KB"
+        else:
+            file_size = f"{file_size_bytes / (1024 * 1024):.1f} MB"
+            
+        # Update registry
+        event_docs = load_event_documents()
+        event_id_str = str(event_id)
+        if event_id_str not in event_docs:
+            event_docs[event_id_str] = []
+            
+        # Remove any existing record of the same filename in this event
+        event_docs[event_id_str] = [d for d in event_docs[event_id_str] if d['filename'] != filename]
+        
+        chicago_tz = ZoneInfo("America/Chicago")
+        uploaded_at = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d %H:%M:%S')
+        
+        event_docs[event_id_str].append({
+            'filename': filename,
+            'uploaded_by': last_name,
+            'uploaded_at': uploaded_at,
+            'file_size': file_size
+        })
+        
+        save_event_documents(event_docs)
+        
+        logger.info(f"Admin {last_name} uploaded file {filename} for event {event_id}", extra={"tags": {"event_type": "app_telemetry", "action": "document_uploaded"}})
+        return jsonify({'success': True, 'filename': filename, 'file_size': file_size})
+        
+    return jsonify({'error': 'File upload failed'}), 500
+
+@app.route('/admin/delete-document', methods=['POST'])
+def delete_document():
+    if not session.get('authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    last_name = session.get('last_name', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    if not is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    data = request.json or {}
+    event_id = data.get('event_id')
+    filename = data.get('filename')
+    
+    if not event_id or not filename:
+        return jsonify({'error': 'Missing parameters'}), 400
+        
+    event_id_str = str(event_id)
+    filename = secure_filename(filename)
+    
+    # Remove from disk
+    file_path = os.path.join(EVENT_DOCS_DIR, event_id_str, filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            # Remove directory if empty
+            dest_dir = os.path.dirname(file_path)
+            if os.path.exists(dest_dir) and not os.listdir(dest_dir):
+                os.rmdir(dest_dir)
+        except Exception as e:
+            logger.error(f"Error removing file {file_path}: {e}")
+            return jsonify({'error': 'Failed to delete file from disk'}), 500
+            
+    # Remove from registry
+    event_docs = load_event_documents()
+    if event_id_str in event_docs:
+        event_docs[event_id_str] = [d for d in event_docs[event_id_str] if d['filename'] != filename]
+        if not event_docs[event_id_str]:
+            del event_docs[event_id_str]
+        save_event_documents(event_docs)
+        
+    logger.info(f"Admin {last_name} deleted file {filename} for event {event_id}", extra={"tags": {"event_type": "app_telemetry", "action": "document_deleted"}})
+    return jsonify({'success': True})
+
+@app.route('/api/event-document/<event_id>/<filename>')
+def get_event_document(event_id, filename):
+    if not session.get('authenticated'):
+        return "Unauthorized. Please log in first.", 401
+        
+    last_name = session.get('last_name', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    
+    event_id_str = str(event_id)
+    filename = secure_filename(filename)
+    
+    event_docs = load_event_documents()
+    docs = event_docs.get(event_id_str, [])
+    if not any(d['filename'] == filename for d in docs):
+        return "Document not found in registry", 404
+        
+    if is_admin or event_id_str in session.get('attending_event_ids', []):
+        file_path = os.path.join(EVENT_DOCS_DIR, event_id_str)
+        if not os.path.exists(os.path.join(file_path, filename)):
+            return "Document not found on disk", 404
+        return send_from_directory(file_path, filename)
+        
+    return "Access Denied. You must be signed up for this event to view its documents.", 403
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
