@@ -151,6 +151,73 @@
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
         }
 
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-bar .search-container {
+            flex: 1;
+            min-width: 280px;
+            margin-bottom: 0;
+        }
+
+        .export-container {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.25rem;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-export:hover {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-export:active {
+            transform: translateY(0);
+        }
+
+        .btn-export.secondary {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border-color: var(--border-color);
+        }
+
+        .btn-export.secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-icon {
+            width: 16px;
+            height: 16px;
+        }
+
         .table-wrapper {
             overflow-x: auto;
             border-radius: 8px;
@@ -316,8 +383,20 @@
         {% endif %}
 
         <div class="dashboard-section">
-            <div class="search-container">
-                <input type="text" id="searchInput" placeholder="Search by volunteer name or victor number...">
+            <div class="action-bar">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search by volunteer name or victor number...">
+                </div>
+                <div class="export-container">
+                    <a href="/gsar-lead/export-summary" class="btn-export" title="Download Volunteer Hours Summary CSV">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Export Summary
+                    </a>
+                    <a href="/gsar-lead/export-raw" class="btn-export secondary" title="Download All Raw Training Logs CSV">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Export Raw Logs
+                    </a>
+                </div>
             </div>
 
             {% if people %}
