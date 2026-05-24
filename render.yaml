@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: volunteer-portal
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    disk:
+      name: portal-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: SECRET_KEY
+        generateValue: true
+      - key: NEWSLETTER_SHEET_URL
+        sync: false
+      - key: GSAR_SHEET_URL
+        sync: false
+      - key: LOGIN_SHEET_URL
+        sync: false
+      - key: SMTP_SERVER
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_SENDER
+        sync: false

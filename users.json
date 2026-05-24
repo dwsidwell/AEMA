@@ -6,7 +6,9 @@
         "is_default": false,
         "email": "dwsidwell@gmail.com",
         "first_name": "Dave",
-        "cell_phone": "630-258-2353"
+        "cell_phone": "630-258-2353",
+        "iar_first_name": "Dave",
+        "iar_last_name": "Sidwell"
     },
     "schur_v22": {
         "last_name": "Schur",
