@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, Response
 import re
 import requests
 from bs4 import BeautifulSoup
@@ -777,6 +777,139 @@ def gsar_team_lead():
         error=error_msg,
         user_name=f"{last_name}, {victor_number}"
     )
+
+@app.route('/gsar-lead/export-summary')
+def gsar_lead_export_summary():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    victor_number = session.get('victor_number', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    if not is_admin:
+        logger.warning(f"Unauthorized access attempt to export summary by {last_name} ({victor_number})")
+        return redirect(url_for('index'))
+        
+    sheet_url = os.environ.get('GSAR_SHEET_URL')
+    if not sheet_url:
+        sheet_url = "https://docs.google.com/spreadsheets/d/1vuYmvyLLW-xW5uMAjzd1hBAQ9kD2aQjeY5d5llzPeN0/export?format=csv"
+        
+    def parse_date(date_str):
+        for fmt in ('%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d'):
+            try:
+                return datetime.datetime.strptime(date_str.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    today = datetime.date.today()
+    three_years_ago = today - datetime.timedelta(days=3*365)
+    
+    people = {}
+    
+    try:
+        response = requests.get(sheet_url, timeout=10)
+        if response.status_code == 200:
+            csv_content = response.text
+            csv_file = StringIO(csv_content)
+            reader = csv.DictReader(csv_file)
+            
+            for row in reader:
+                row_vn = row.get('Victor Number', '').strip().upper()
+                if row_vn and not row_vn.startswith('V'):
+                    row_vn = f"V{row_vn}"
+                
+                row_name = row.get('Full Name', '').strip()
+                if not row_name:
+                    continue
+                
+                row_name = row_name.title()
+                
+                hours_str = row.get('Hours', '0').strip()
+                try:
+                    hours_val = float(hours_str)
+                except ValueError:
+                    hours_val = 0.0
+                
+                date_str = row.get('Date', '')
+                parsed_date = parse_date(date_str)
+                is_recent = False
+                if parsed_date and three_years_ago <= parsed_date <= today:
+                    is_recent = True
+                
+                person_key = row_vn if row_vn else row_name
+                
+                if person_key not in people:
+                    people[person_key] = {
+                        'name': row_name,
+                        'victor_number': row_vn or 'N/A',
+                        'total_hours': 0.0,
+                        'recent_hours': 0.0
+                    }
+                
+                people[person_key]['total_hours'] += hours_val
+                if is_recent:
+                    people[person_key]['recent_hours'] += hours_val
+            
+            for p in people.values():
+                p['total_hours'] = round(p['total_hours'], 2)
+                p['recent_hours'] = round(p['recent_hours'], 2)
+        else:
+            return f"Failed to fetch data from Google Sheet: HTTP {response.status_code}", 500
+    except Exception as e:
+        logger.error(f"Error compiling export summary: {e}")
+        return f"Error compiling export: {str(e)}", 500
+        
+    sorted_people = sorted(people.values(), key=lambda x: x['name'].lower())
+    
+    # Generate CSV in memory
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['Volunteer Name', 'Victor Number', 'Hours (Last 3 Years)', 'Total Hours'])
+    for p in sorted_people:
+        writer.writerow([p['name'], p['victor_number'], p['recent_hours'], p['total_hours']])
+        
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=gsar_volunteer_hours_summary.csv"}
+    )
+
+@app.route('/gsar-lead/export-raw')
+def gsar_lead_export_raw():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    victor_number = session.get('victor_number', '')
+    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    if not is_admin:
+        logger.warning(f"Unauthorized access attempt to export raw data by {last_name} ({victor_number})")
+        return redirect(url_for('index'))
+        
+    sheet_url = os.environ.get('GSAR_SHEET_URL')
+    if not sheet_url:
+        sheet_url = "https://docs.google.com/spreadsheets/d/1vuYmvyLLW-xW5uMAjzd1hBAQ9kD2aQjeY5d5llzPeN0/export?format=csv"
+        
+    try:
+        response = requests.get(sheet_url, timeout=10)
+        if response.status_code == 200:
+            csv_content = response.text
+            return Response(
+                csv_content,
+                mimetype="text/csv",
+                headers={"Content-disposition": "attachment; filename=gsar_raw_training_logs.csv"}
+            )
+        else:
+            return f"Failed to fetch data from Google Sheet: HTTP {response.status_code}", 500
+    except Exception as e:
+        logger.error(f"Error fetching raw export: {e}")
+        return f"Error fetching raw export: {str(e)}", 500
 
 @app.route('/api/events', methods=['POST'])
 def get_events():
