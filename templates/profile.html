@@ -90,7 +90,8 @@
 
         input[type="text"],
         input[type="email"],
-        input[type="tel"] {
+        input[type="tel"],
+        input[type="password"] {
             width: 100%;
             padding: 0.875rem 1rem;
             border-radius: 8px;
@@ -104,7 +105,8 @@
 
         input[type="text"]:focus,
         input[type="email"]:focus,
-        input[type="tel"]:focus {
+        input[type="tel"]:focus,
+        input[type="password"]:focus {
             outline: none;
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -251,6 +253,31 @@
             <div class="form-group">
                 <label for="cell_phone">Cell Phone</label>
                 <input type="tel" id="cell_phone" name="cell_phone" required placeholder="e.g. 555-555-5555" value="{{ cell_phone or '' }}">
+            </div>
+            
+            <div style="margin-top: 1.5rem; margin-bottom: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--text-main); font-weight: 600;">IamResponding Configuration</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">These credentials are used by the server to fetch your IAR events. They must match the exact credentials you use to log into the IAR mobile app.</p>
+
+                <div class="form-group">
+                    <label for="iar_member_id">IAR Member ID</label>
+                    <input type="text" id="iar_member_id" name="iar_member_id" readonly value="{{ iar_member_id or '' }}" placeholder="Set by Administrator">
+                </div>
+
+                <div class="form-group">
+                    <label for="iar_agency">IAR Agency</label>
+                    <input type="text" id="iar_agency" name="iar_agency" placeholder="Enter IAR Agency" value="{{ iar_agency or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="iar_username">IAR Username</label>
+                    <input type="text" id="iar_username" name="iar_username" placeholder="Enter IAR Username" value="{{ iar_username or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="iar_password">IAR Password</label>
+                    <input type="password" id="iar_password" name="iar_password" placeholder="Leave blank to keep existing password">
+                </div>
             </div>
             
             <button type="submit" class="btn-primary">Save Profile</button>
