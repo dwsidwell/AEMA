@@ -181,6 +181,10 @@
             background: linear-gradient(90deg, #8b5cf6, #d8b4fe);
         }
 
+        .card-newsletters::before {
+            background: linear-gradient(90deg, #06b6d4, #0891b2);
+        }
+
         .card-lead::before {
             background: linear-gradient(90deg, #10b981, #34d399);
         }
@@ -231,6 +235,16 @@
 
         .btn-gsar:hover {
             background-color: var(--secondary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-newsletters {
+            background-color: #06b6d4;
+            color: white;
+        }
+
+        .btn-newsletters:hover {
+            background-color: #0891b2;
             transform: translateY(-1px);
         }
 
@@ -443,6 +457,31 @@
                     </p>
                 </div>
                 <a href="/gsar" class="btn-portal btn-gsar">View Continuing Ed</a>
+            </div>
+
+            <div class="card card-newsletters">
+                <div>
+                    <h2 class="card-title">Newsletters</h2>
+                    <p class="card-description">
+                        Access monthly volunteer newsletters.
+                    </p>
+                    {% if latest_newsletter %}
+                    <div style="margin-top: 0.75rem; margin-bottom: 1.25rem;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem;">Latest:</span>
+                        <a href="{{ latest_newsletter.url }}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--accent-color)'">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 1rem; height: 1rem; flex-shrink: 0; color: var(--primary-color);">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <line x1="10" y1="9" x2="8" y2="9"/>
+                            </svg>
+                            <span>{{ latest_newsletter.title }} ↗</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <a href="/newsletters" class="btn-portal btn-newsletters">View All Newsletters</a>
             </div>
 
             <div class="card card-links">
