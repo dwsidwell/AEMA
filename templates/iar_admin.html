@@ -398,40 +398,14 @@
     </header>
 
     <div class="card" id="loginCard">
-        <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.6rem; background-color: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); padding: 0.75rem 1rem; border-radius: 8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 1.15rem; height: 1.15rem; color: var(--primary-color); flex-shrink: 0;">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-            <span>Your login information is the same as you use for the IAR App</span>
-        </div>
         <form id="credentialsForm">
-            <div class="flex-row">
-                <div class="form-group">
-                    <label for="agency">Agency</label>
-                    <input type="text" id="agency" required placeholder="Enter Agency">
-                </div>
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" required placeholder="Enter Username">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required placeholder="Enter Password">
-                </div>
-                <div class="form-group">
+            <div class="flex-row" style="align-items: flex-end; gap: 1rem; flex-wrap: wrap;">
+                <div class="form-group" style="margin-bottom: 0; max-width: 180px;">
                     <label for="days">Days to Fetch</label>
                     <input type="number" id="days" value="10" min="1" max="365" required>
                 </div>
-            </div>
-
-            <div class="flex-row" style="margin-top: 0.5rem;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <button type="submit" class="btn-primary" id="fetchBtn">Fetch Events</button>
-                </div>
-                <div class="form-group" id="clearBtnContainer" style="display: none; margin-bottom: 0;">
-                    <button type="button" class="btn-secondary" id="clearBtn" style="margin-top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Clear Saved Credentials</button>
+                    <button type="submit" class="btn-primary" id="fetchBtn" style="height: 46px; margin-top: 0; width: 140px;">Fetch Events</button>
                 </div>
             </div>
 
@@ -447,17 +421,6 @@
         </form>
 
         <div id="statusMessage" class="status-message"></div>
-    </div>
-
-    <div style="text-align: right; margin-bottom: 1rem;">
-        <label style="display: inline-flex; align-items: center; cursor: pointer; color: var(--text-muted); font-size: 0.85rem;">
-            <input type="checkbox" id="debugFlag" style="margin-right: 0.5rem;"> Show API URLs
-        </label>
-    </div>
-
-    <div class="card" id="urlCard" style="display: none; margin-bottom: 2rem; padding: 1.5rem;">
-        <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--text-muted);">API URLs Called</h3>
-        <pre id="urlContent" style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-size: 0.8rem; overflow-x: auto; color: #a78bfa; margin-bottom: 0; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
     </div>
 
     <div class="table-container" id="resultsContainer">
@@ -506,72 +469,22 @@
         const urlContent = document.getElementById('urlContent');
         const exportBtn = document.getElementById('exportBtn');
 
-        let lastUrls = [];
         let lastFetchedEvents = [];
 
-        debugFlag.addEventListener('change', () => {
-            if (debugFlag.checked && lastUrls.length > 0) {
-                urlContent.textContent = lastUrls.join('\n');
-                urlCard.style.display = 'block';
-            } else {
-                urlCard.style.display = 'none';
-            }
-        });
-
-        // Load credentials from local storage
-        const savedAgency = localStorage.getItem('iar_agency');
-        const savedUsername = localStorage.getItem('iar_username');
-        const savedPassword = localStorage.getItem('iar_password');
+        // Load saved days from local storage if any
         const savedDays = localStorage.getItem('iar_days');
-
         if (savedDays) {
             daysInput.value = savedDays;
         }
 
-        if (savedAgency && savedUsername && savedPassword) {
-            agencyInput.value = savedAgency;
-            usernameInput.value = savedUsername;
-            passwordInput.value = savedPassword;
-            clearBtnContainer.style.display = 'block';
-            
-            // Automatically fetch if credentials are saved
-            fetchEvents(savedAgency, savedUsername, savedPassword, daysInput.value);
-        }
-
-        clearBtn.addEventListener('click', () => {
-            localStorage.removeItem('iar_agency');
-            localStorage.removeItem('iar_username');
-            localStorage.removeItem('iar_password');
-            localStorage.removeItem('iar_days');
-            agencyInput.value = '';
-            usernameInput.value = '';
-            passwordInput.value = '';
-            daysInput.value = '10';
-            clearBtnContainer.style.display = 'none';
-            filterContainer.style.display = 'none';
-            resultsContainer.style.display = 'none';
-            summaryCard.style.display = 'none';
-            urlCard.style.display = 'none';
-            lastUrls = [];
-            lastFetchedEvents = [];
-            showStatus('', '');
-        });
+        // Automatically fetch events on load
+        fetchEvents(daysInput.value);
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const agency = agencyInput.value.trim();
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value;
             const days = daysInput.value;
-            
-            // Save to local storage automatically
-            localStorage.setItem('iar_agency', agency);
-            localStorage.setItem('iar_username', username);
-            localStorage.setItem('iar_password', password);
             localStorage.setItem('iar_days', days);
-            clearBtnContainer.style.display = 'block';
-
-            fetchEvents(agency, username, password, days);
+            fetchEvents(days);
         });
 
         function showStatus(type, message) {
@@ -585,8 +498,10 @@
             
             if (type === 'loading') {
                 statusMessage.innerHTML = `<div class="spinner"></div> ${message}`;
+            } else if (type === 'error' && (message.includes('update your IAR credentials') || message.includes('Missing credentials') || message.includes('Are credentials correct'))) {
+                statusMessage.innerHTML = `You need to update your IAR credentials in <a href="/profile" style="color: #60a5fa; text-decoration: underline; font-weight: 600;">your profile</a>.`;
             } else {
-                statusMessage.textContent = message;
+                statusMessage.innerHTML = message;
             }
             
             statusMessage.style.display = type === 'loading' ? 'flex' : 'block';
@@ -612,14 +527,11 @@
 
         // Helper to get attendee name
         function getAttendeeName(attendee) {
-            // The JSON contains a nested 'member' object
             if (attendee.member) {
                 if (attendee.member.name && attendee.member.lastName) {
                     return `${attendee.member.name} ${attendee.member.lastName}`;
                 }
             }
-            
-            // Fallbacks just in case
             if (attendee.name && attendee.lastName) {
                 return `${attendee.name} ${attendee.lastName}`;
             }
@@ -629,25 +541,21 @@
             if (attendee.name) {
                 return attendee.name;
             }
-            
-            // Fallback: Display the actual JSON so we can see exactly what fields exist
             return JSON.stringify(attendee).replace(/[{"}]/g, '').substring(0, 100);
         }
 
-        async function fetchEvents(agency, username, password, days) {
+        async function fetchEvents(days) {
             showStatus('loading', 'Authenticating and fetching events... This may take a moment.');
             resultsContainer.style.display = 'none';
             summaryCard.style.display = 'none';
-            urlCard.style.display = 'none';
             filterContainer.style.display = 'none';
-            lastUrls = [];
             fetchBtn.disabled = true;
 
             try {
                 const response = await fetch('/api/events', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agency, username, password, days })
+                    body: JSON.stringify({ days, is_admin_view: true })
                 });
 
                 const data = await response.json();
@@ -658,19 +566,11 @@
 
                 lastFetchedEvents = data.events;
 
-                if (data.urls) {
-                    lastUrls = data.urls;
-                    if (debugFlag.checked) {
-                        urlContent.textContent = lastUrls.join('\n');
-                        urlCard.style.display = 'block';
-                    }
-                }
-
                 renderTable(data.events);
                 updateAttendeeDropdown(data.events);
                 showStatus('', '');
             } catch (error) {
-                showStatus('error', error.message);
+                window.location.href = '/profile?error=iar_failed';
             } finally {
                 fetchBtn.disabled = false;
             }

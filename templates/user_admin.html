@@ -557,17 +557,15 @@
                     <tr>
                         <th>User Profile</th>
                         <th>Victor ID</th>
-                        <th>Email</th>
-                        <th>Phone</th>
                         <th>Role</th>
-                        <th>IAR Name Mapping</th>
+                        <th>IAR Member ID</th>
                         <th style="text-align: center;">Status</th>
                         <th style="text-align: right; padding-right: 1.5rem;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
                             <div class="spinner" style="margin: 0 auto 1rem auto; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
                             Loading user database...
                         </td>
@@ -607,6 +605,18 @@
                     <div class="form-group">
                         <label for="create_cell_phone">Cell Phone</label>
                         <input type="tel" id="create_cell_phone" placeholder="e.g. 630-555-0199">
+                    </div>
+                    <div class="form-group">
+                        <label for="create_iar_member_id">IAR Member ID</label>
+                        <input type="text" id="create_iar_member_id" placeholder="e.g. 12345">
+                    </div>
+                    <div class="form-group">
+                        <label for="create_iar_agency">IAR Agency</label>
+                        <input type="text" id="create_iar_agency" placeholder="e.g. AgencyName">
+                    </div>
+                    <div class="form-group">
+                        <label for="create_iar_username">IAR Username</label>
+                        <input type="text" id="create_iar_username" placeholder="e.g. Username">
                     </div>
                     <div class="form-group">
                         <label for="create_iar_first_name">IAR First Name Override</label>
@@ -663,6 +673,18 @@
                     <div class="form-group">
                         <label for="edit_cell_phone">Cell Phone</label>
                         <input type="tel" id="edit_cell_phone" placeholder="e.g. 630-555-0199">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_iar_member_id">IAR Member ID</label>
+                        <input type="text" id="edit_iar_member_id" placeholder="e.g. 12345">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_iar_agency">IAR Agency</label>
+                        <input type="text" id="edit_iar_agency" placeholder="e.g. AgencyName">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_iar_username">IAR Username</label>
+                        <input type="text" id="edit_iar_username" placeholder="e.g. Username">
                     </div>
                     <div class="form-group">
                         <label for="edit_iar_first_name">IAR First Name Override</label>
@@ -733,7 +755,7 @@
         if (users.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="empty-state">
+                    <td colspan="6" class="empty-state">
                         <div class="empty-icon">👥</div>
                         <h3>No matching user accounts</h3>
                         <p>Verify filters or click "Create User" to add profiles.</p>
@@ -781,6 +803,23 @@
             tdRole.innerHTML = user.is_admin 
                 ? `<span class="vn-tag" style="background-color: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2);">Admin</span>` 
                 : `<span style="color: var(--text-muted); font-size: 0.85rem;">Volunteer</span>`;
+
+            // IAR Member ID col
+            const tdIarMemberId = document.createElement('td');
+            tdIarMemberId.textContent = user.IAR_memberId || '—';
+
+            // IAR Credentials col
+            const tdIarCredentials = document.createElement('td');
+            if (user.IAR_Agency || user.IAR_Username) {
+                tdIarCredentials.innerHTML = `
+                    <div style="font-size: 0.8rem; line-height: 1.3;">
+                        <div><strong>Agency:</strong> ${user.IAR_Agency || '—'}</div>
+                        <div><strong>User:</strong> ${user.IAR_Username || '—'}</div>
+                    </div>
+                `;
+            } else {
+                tdIarCredentials.innerHTML = `<span style="color: var(--text-muted); font-size: 0.8rem;">Not configured</span>`;
+            }
 
             // IAR override mapping
             const tdIar = document.createElement('td');
@@ -853,10 +892,8 @@
 
             tr.appendChild(tdProfile);
             tr.appendChild(tdVictor);
-            tr.appendChild(tdEmail);
-            tr.appendChild(tdPhone);
             tr.appendChild(tdRole);
-            tr.appendChild(tdIar);
+            tr.appendChild(tdIarMemberId);
             tr.appendChild(tdStatus);
             tr.appendChild(tdActions);
             tbody.appendChild(tr);
@@ -912,6 +949,9 @@
                     cell_phone: user.cell_phone || '',
                     iar_first_name: user.iar_first_name || '',
                     iar_last_name: user.iar_last_name || '',
+                    IAR_memberId: user.IAR_memberId || '',
+                    IAR_Agency: user.IAR_Agency || '',
+                    IAR_Username: user.IAR_Username || '',
                     is_active: nextStatus,
                     is_admin: !!user.is_admin
                 })
@@ -988,6 +1028,9 @@
             victor_number: document.getElementById('create_victor_number').value.trim(),
             email: document.getElementById('create_email').value.trim(),
             cell_phone: document.getElementById('create_cell_phone').value.trim(),
+            IAR_memberId: document.getElementById('create_iar_member_id').value.trim(),
+            IAR_Agency: document.getElementById('create_iar_agency').value.trim(),
+            IAR_Username: document.getElementById('create_iar_username').value.trim(),
             iar_first_name: document.getElementById('create_iar_first_name').value.trim(),
             iar_last_name: document.getElementById('create_iar_last_name').value.trim(),
             is_admin: document.getElementById('create_is_admin').checked
@@ -1022,6 +1065,9 @@
         document.getElementById('edit_victor_number').value = user.victor_number || '';
         document.getElementById('edit_email').value = user.email || '';
         document.getElementById('edit_cell_phone').value = user.cell_phone || '';
+        document.getElementById('edit_iar_member_id').value = user.IAR_memberId || '';
+        document.getElementById('edit_iar_agency').value = user.IAR_Agency || '';
+        document.getElementById('edit_iar_username').value = user.IAR_Username || '';
         document.getElementById('edit_iar_first_name').value = user.iar_first_name || '';
         document.getElementById('edit_iar_last_name').value = user.iar_last_name || '';
         document.getElementById('edit_status').value = String(user.is_active);
@@ -1060,6 +1106,9 @@
             victor_number: document.getElementById('edit_victor_number').value.trim(),
             email: document.getElementById('edit_email').value.trim(),
             cell_phone: document.getElementById('edit_cell_phone').value.trim(),
+            IAR_memberId: document.getElementById('edit_iar_member_id').value.trim(),
+            IAR_Agency: document.getElementById('edit_iar_agency').value.trim(),
+            IAR_Username: document.getElementById('edit_iar_username').value.trim(),
             iar_first_name: document.getElementById('edit_iar_first_name').value.trim(),
             iar_last_name: document.getElementById('edit_iar_last_name').value.trim(),
             is_active: document.getElementById('edit_status').value === 'true',
