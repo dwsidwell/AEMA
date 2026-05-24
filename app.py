@@ -62,19 +62,22 @@ def load_users():
                 "last_name": "Sidwell",
                 "victor_number": "V31",
                 "password_hash": generate_password_hash("password123"),
-                "is_default": True
+                "is_default": True,
+                "is_admin": True
             },
             "schur_v22": {
                 "last_name": "Schur",
                 "victor_number": "V22",
                 "password_hash": generate_password_hash("password123"),
-                "is_default": True
+                "is_default": True,
+                "is_admin": True
             },
             "reese_v2": {
                 "last_name": "Reese",
                 "victor_number": "V2",
                 "password_hash": generate_password_hash("password123"),
-                "is_default": True
+                "is_default": True,
+                "is_admin": True
             }
         }
         try:
@@ -87,10 +90,24 @@ def load_users():
         
     try:
         with open(USERS_FILE, 'r') as f:
-            return json.load(f)
+            users = json.load(f)
     except Exception as e:
         logger.error(f"Error loading users file: {e}")
         return {}
+
+    # Migration check: Ensure Schur, Sidwell, and Reese are flagged as admins
+    modified = False
+    for admin_key in ["sidwell_v31", "schur_v22", "reese_v2"]:
+        if admin_key in users:
+            if not users[admin_key].get('is_admin'):
+                users[admin_key]['is_admin'] = True
+                modified = True
+                
+    if modified:
+        save_users(users)
+        logger.info("Migrated initial default users to have is_admin=True in users.json.")
+        
+    return users
 
 def save_users(users):
     try:
@@ -348,6 +365,24 @@ def send_password_reset_email(to_email, last_name, victor_number, temp_password)
         logger.error(f"Failed to send password reset email: {e}")
         return False
 
+@app.before_request
+def check_user_active():
+    public_endpoints = ['login', 'forgot_password', 'static', 'logout']
+    if not request.endpoint or request.endpoint in public_endpoints:
+        return
+        
+    user_key = session.get('user_key')
+    if user_key:
+        users = load_users()
+        user = users.get(user_key)
+        if not user or not user.get('is_active', True):
+            session.clear()
+            logger.warning(f"Session invalidated for deactivated or deleted user: {user_key}")
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Account deactivated or deleted'}), 401
+            return redirect(url_for('login'))
+        session['is_admin'] = user.get('is_admin', False)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -361,24 +396,29 @@ def login():
         
         user = users.get(user_key)
         if user and check_password_hash(user['password_hash'], password):
-            session['user_key'] = user_key
-            session['last_name'] = user['last_name']
-            session['victor_number'] = user['victor_number']
-            
-            ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-            if ip_address and ',' in ip_address:
-                ip_address = ip_address.split(',')[0].strip()
-                
-            if user.get('is_default', True):
-                session['must_change_password'] = True
-                log_login_event(user['last_name'], user['victor_number'], ip_address, "Success (Reset Required)")
-                logger.info(f"User {user_key} logged in with default password, forcing change", extra={"tags": {"event_type": "app_telemetry", "action": "login_must_change"}})
-                return redirect(url_for('change_password'))
+            if not user.get('is_active', True):
+                error = 'Account is deactivated. Please contact an administrator.'
+                logger.warning(f"Deactivated user {user_key} attempted login")
             else:
-                session['authenticated'] = True
-                log_login_event(user['last_name'], user['victor_number'], ip_address, "Success")
-                logger.info(f"User {user_key} logged in successfully", extra={"tags": {"event_type": "app_telemetry", "action": "login_success"}})
-                return redirect(url_for('index'))
+                session['user_key'] = user_key
+                session['last_name'] = user['last_name']
+                session['victor_number'] = user['victor_number']
+                session['is_admin'] = user.get('is_admin', False)
+                
+                ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+                if ip_address and ',' in ip_address:
+                    ip_address = ip_address.split(',')[0].strip()
+                    
+                if user.get('is_default', True):
+                    session['must_change_password'] = True
+                    log_login_event(user['last_name'], user['victor_number'], ip_address, "Success (Reset Required)")
+                    logger.info(f"User {user_key} logged in with default password, forcing change", extra={"tags": {"event_type": "app_telemetry", "action": "login_must_change"}})
+                    return redirect(url_for('change_password'))
+                else:
+                    session['authenticated'] = True
+                    log_login_event(user['last_name'], user['victor_number'], ip_address, "Success")
+                    logger.info(f"User {user_key} logged in successfully", extra={"tags": {"event_type": "app_telemetry", "action": "login_success"}})
+                    return redirect(url_for('index'))
         else:
             ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
             if ip_address and ',' in ip_address:
@@ -559,7 +599,7 @@ def index():
     if not session.get('authenticated'):
         return redirect(url_for('login'))
     last_name = session.get('last_name', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     is_sidwell = last_name.lower() == 'sidwell'
     
     latest_newsletter = None
@@ -600,9 +640,20 @@ def iar_dashboard():
         return redirect(url_for('change_password'))
     if not session.get('authenticated'):
         return redirect(url_for('login'))
+    return render_template('index.html', is_admin=False)
+
+@app.route('/iar-admin')
+def iar_admin_dashboard():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
     last_name = session.get('last_name', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
-    return render_template('index.html', is_admin=is_admin)
+    is_admin = session.get('is_admin', False)
+    if not is_admin:
+        logger.warning(f"Unauthorized IAR Admin access attempt by {last_name}")
+        return redirect(url_for('index'))
+    return render_template('iar_admin.html', is_admin=True)
 
 @app.route('/gsar')
 def gsar_dashboard():
@@ -624,7 +675,7 @@ def gsar_dashboard():
     user_vn = victor_number.upper().lstrip('V')
     
     # Check admin status
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     
     if is_admin:
         target_vn = request.args.get('view_vn', user_vn).upper().lstrip('V')
@@ -760,7 +811,7 @@ def gsar_team_lead():
         
     last_name = session.get('last_name', '')
     victor_number = session.get('victor_number', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     if not is_admin:
         logger.warning(f"Unauthorized access attempt to /gsar-lead by {last_name} ({victor_number})", extra={"tags": {"event_type": "app_telemetry", "action": "unauthorized_lead_access"}})
         return redirect(url_for('index'))
@@ -854,7 +905,7 @@ def gsar_lead_export_summary():
         
     last_name = session.get('last_name', '')
     victor_number = session.get('victor_number', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     if not is_admin:
         logger.warning(f"Unauthorized access attempt to export summary by {last_name} ({victor_number})")
         return redirect(url_for('index'))
@@ -954,7 +1005,7 @@ def gsar_lead_export_raw():
         
     last_name = session.get('last_name', '')
     victor_number = session.get('victor_number', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     if not is_admin:
         logger.warning(f"Unauthorized access attempt to export raw data by {last_name} ({victor_number})")
         return redirect(url_for('index'))
@@ -1059,7 +1110,7 @@ def get_events():
         users = load_users()
         current_user = users.get(session.get('user_key'))
         last_name = session.get('last_name', '')
-        is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+        is_admin = session.get('is_admin', False)
         
         for event in events:
             event_id = event.get('id')
@@ -1240,7 +1291,7 @@ def upload_document():
         return jsonify({'error': 'Unauthorized'}), 401
     
     last_name = session.get('last_name', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     if not is_admin:
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -1304,7 +1355,7 @@ def delete_document():
         return jsonify({'error': 'Unauthorized'}), 401
         
     last_name = session.get('last_name', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     if not is_admin:
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -1348,7 +1399,7 @@ def get_event_document(event_id, filename):
         return "Unauthorized. Please log in first.", 401
         
     last_name = session.get('last_name', '')
-    is_admin = last_name.lower() in ['schur', 'sidwell', 'reese']
+    is_admin = session.get('is_admin', False)
     
     event_id_str = str(event_id)
     filename = secure_filename(filename)
@@ -1365,6 +1416,182 @@ def get_event_document(event_id, filename):
         return send_from_directory(file_path, filename)
         
     return "Access Denied. You must be signed up for this event to view its documents.", 403
+
+def is_session_admin():
+    return session.get('is_admin', False)
+
+@app.route('/admin/users')
+def user_admin_dashboard():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+    if not is_session_admin():
+        logger.warning(f"Unauthorized User Admin access attempt by {session.get('last_name')}")
+        return redirect(url_for('index'))
+    return render_template('user_admin.html')
+
+@app.route('/api/admin/users', methods=['GET'])
+def get_admin_users():
+    if not session.get('authenticated') or not is_session_admin():
+        return jsonify({'error': 'Unauthorized'}), 401
+    users = load_users()
+    user_list = []
+    for key, profile in users.items():
+        profile_copy = profile.copy()
+        profile_copy['user_key'] = key
+        profile_copy.pop('password_hash', None)
+        profile_copy['is_active'] = profile_copy.get('is_active', True)
+        profile_copy['is_admin'] = profile_copy.get('is_admin', False)
+        user_list.append(profile_copy)
+    return jsonify(user_list)
+
+@app.route('/api/admin/users', methods=['POST'])
+def create_admin_user():
+    if not session.get('authenticated') or not is_session_admin():
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json or {}
+    first_name = data.get('first_name', '').strip()
+    last_name = data.get('last_name', '').strip()
+    victor_number = data.get('victor_number', '').strip()
+    email = data.get('email', '').strip()
+    cell_phone = data.get('cell_phone', '').strip()
+    iar_first_name = data.get('iar_first_name', '').strip()
+    iar_last_name = data.get('iar_last_name', '').strip()
+    is_admin = bool(data.get('is_admin', False))
+    
+    if not last_name or not victor_number:
+        return jsonify({'error': 'Last Name and Victor Number are required.'}), 400
+        
+    user_key = f"{last_name.lower()}_{victor_number.lower()}"
+    users = load_users()
+    if user_key in users:
+        return jsonify({'error': 'A user with this Last Name and Victor Number already exists.'}), 400
+        
+    users[user_key] = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'victor_number': victor_number,
+        'email': email,
+        'cell_phone': cell_phone,
+        'iar_first_name': iar_first_name or None,
+        'iar_last_name': iar_last_name or None,
+        'is_active': True,
+        'is_default': True,
+        'is_admin': is_admin,
+        'password_hash': generate_password_hash("password123")
+    }
+    save_users(users)
+    logger.info(f"Admin {session.get('last_name')} created user {user_key}")
+    return jsonify({'success': True, 'user_key': user_key})
+
+@app.route('/api/admin/users', methods=['PUT'])
+def update_admin_user():
+    if not session.get('authenticated') or not is_session_admin():
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json or {}
+    old_key = data.get('user_key')
+    if not old_key:
+        return jsonify({'error': 'Missing user_key'}), 400
+        
+    users = load_users()
+    if old_key not in users:
+        return jsonify({'error': 'User not found.'}), 404
+        
+    first_name = data.get('first_name', '').strip()
+    last_name = data.get('last_name', '').strip()
+    victor_number = data.get('victor_number', '').strip()
+    email = data.get('email', '').strip()
+    cell_phone = data.get('cell_phone', '').strip()
+    iar_first_name = data.get('iar_first_name', '').strip()
+    iar_last_name = data.get('iar_last_name', '').strip()
+    is_active = data.get('is_active', True)
+    is_admin = bool(data.get('is_admin', False))
+    
+    if not last_name or not victor_number:
+        return jsonify({'error': 'Last Name and Victor Number are required.'}), 400
+        
+    # Check self-deactivation restriction
+    if old_key == session.get('user_key') and not is_active:
+        return jsonify({'error': 'You cannot deactivate your own account.'}), 400
+        
+    # Check self-demotion restriction
+    if old_key == session.get('user_key') and not is_admin:
+        return jsonify({'error': 'You cannot remove your own administrator privileges.'}), 400
+        
+    new_key = f"{last_name.lower()}_{victor_number.lower()}"
+    if new_key != old_key and new_key in users:
+        return jsonify({'error': 'A user with this Last Name and Victor Number already exists.'}), 400
+        
+    profile = users[old_key]
+    
+    profile['first_name'] = first_name
+    profile['last_name'] = last_name
+    profile['victor_number'] = victor_number
+    profile['email'] = email
+    profile['cell_phone'] = cell_phone
+    profile['iar_first_name'] = iar_first_name or None
+    profile['iar_last_name'] = iar_last_name or None
+    profile['is_active'] = is_active
+    profile['is_admin'] = is_admin
+    
+    if new_key != old_key:
+        users[new_key] = profile
+        del users[old_key]
+        if old_key == session.get('user_key'):
+            session['user_key'] = new_key
+            session['last_name'] = last_name
+            session['victor_number'] = victor_number
+            session['is_admin'] = is_admin
+            logger.info(f"Admin renamed themselves from {old_key} to {new_key}")
+    else:
+        users[old_key] = profile
+        if old_key == session.get('user_key'):
+            session['is_admin'] = is_admin
+        
+    save_users(users)
+    logger.info(f"Admin {session.get('last_name')} updated user {new_key}")
+    return jsonify({'success': True})
+
+@app.route('/api/admin/users', methods=['DELETE'])
+def delete_admin_user():
+    if not session.get('authenticated') or not is_session_admin():
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json or {}
+    user_key = data.get('user_key')
+    if not user_key:
+        return jsonify({'error': 'Missing user_key'}), 400
+        
+    if user_key == session.get('user_key'):
+        return jsonify({'error': 'You cannot delete your own account.'}), 400
+        
+    users = load_users()
+    if user_key not in users:
+        return jsonify({'error': 'User not found.'}), 404
+        
+    del users[user_key]
+    save_users(users)
+    logger.info(f"Admin {session.get('last_name')} deleted user {user_key}")
+    return jsonify({'success': True})
+
+@app.route('/api/admin/users/reset-password', methods=['POST'])
+def reset_admin_user_password():
+    if not session.get('authenticated') or not is_session_admin():
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json or {}
+    user_key = data.get('user_key')
+    if not user_key:
+        return jsonify({'error': 'Missing user_key'}), 400
+        
+    users = load_users()
+    if user_key not in users:
+        return jsonify({'error': 'User not found.'}), 404
+        
+    users[user_key]['password_hash'] = generate_password_hash("password123")
+    users[user_key]['is_default'] = True
+    save_users(users)
+    logger.info(f"Admin {session.get('last_name')} reset password for user {user_key}")
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
