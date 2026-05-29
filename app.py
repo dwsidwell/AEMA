@@ -421,6 +421,30 @@ def check_user_active():
             return redirect(url_for('login'))
         session['is_admin'] = user.get('is_admin', False)
 
+@app.after_request
+def log_page_views(response):
+    if request.endpoint and request.endpoint != 'static':
+        user_key = session.get('user_key', 'anonymous')
+        last_name = session.get('last_name', '')
+        victor_number = session.get('victor_number', '')
+        
+        user_display = f"{last_name} ({victor_number})" if (last_name and victor_number) else (last_name or 'anonymous')
+        
+        logger.info(
+            f"Page View: {user_display} accessed {request.method} {request.path} - Status {response.status_code}",
+            extra={
+                "tags": {
+                    "event_type": "page_view",
+                    "user": user_key,
+                    "last_name": last_name or "anonymous",
+                    "victor_number": victor_number or "none",
+                    "endpoint": request.endpoint,
+                    "status_code": str(response.status_code)
+                }
+            }
+        )
+    return response
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
