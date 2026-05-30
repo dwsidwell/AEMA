@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.utils import formatdate
+import json
 
 # Load environment variables
 load_dotenv()
@@ -443,6 +444,50 @@ def send_attendee_email(to_email, html_content, server):
         logger.error(f"Failed to send attendee email to {to_email}: {str(e)}", extra={"tags": {"event_type": "script_telemetry", "action": "attendee_email_error"}})
         return False
 
+USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading users.json in automation script: {e}")
+    return {}
+
+def find_user_in_registry(member, users):
+    member_id = str(member.get('memberId', ''))
+    member_email = member.get('memberEmail', '').strip().lower()
+    first_name = member.get('name', '').strip().lower()
+    last_name = member.get('lastName', '').strip().lower()
+    
+    # Try matching by member ID first
+    for user in users.values():
+        iar_id = str(user.get('IAR_memberId', ''))
+        if iar_id and iar_id == member_id:
+            return user
+            
+    # Try matching by email
+    if member_email:
+        for user in users.values():
+            user_email = user.get('email', '').strip().lower()
+            if user_email and user_email == member_email:
+                return user
+                
+    # Try matching by first and last name
+    for user in users.values():
+        u_first = user.get('first_name', '').strip().lower()
+        u_last = user.get('last_name', '').strip().lower()
+        iar_first = user.get('iar_first_name', '')
+        iar_last = user.get('iar_last_name', '')
+        u_iar_first = iar_first.strip().lower() if iar_first else u_first
+        u_iar_last = iar_last.strip().lower() if iar_last else u_last
+        
+        if (u_first == first_name or u_iar_first == first_name) and (u_last == last_name or u_iar_last == last_name):
+            return user
+            
+    return None
+
 if __name__ == "__main__":
     logger.info("Starting IamResponding Unified Email Script")
     
@@ -464,6 +509,7 @@ if __name__ == "__main__":
             send_summary_email(summary_html, server)
             
             # 2. Send Attendee Reminders (Filtered to 10 days)
+            users_registry = load_users()
             attendee_groups = group_events_by_attendee(events, DAYS_TO_PULL_REMINDERS)
             sent_count = 0
             skipped_count = 0
@@ -473,6 +519,13 @@ if __name__ == "__main__":
                 member_events = data['events']
                 last_name = member.get('lastName', '')
                 member_email = member.get('memberEmail')
+                
+                # Check weekly reminder preference in registry (defaults to True)
+                user_profile = find_user_in_registry(member, users_registry)
+                if user_profile and not user_profile.get('weekly_reminder_email', True):
+                    logger.info(f"Skipping attendee reminder for {member.get('name')} {last_name}: opted out of weekly reminder email.")
+                    skipped_count += 1
+                    continue
                 
                 # --- TESTING GUARD ---
                 # Remove or comment out this block when moving to production

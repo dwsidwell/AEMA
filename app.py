@@ -92,7 +92,8 @@ def load_users():
                 "IAR_memberId": "",
                 "IAR_Agency": "",
                 "IAR_Username": "",
-                "IAR_Password": ""
+                "IAR_Password": "",
+                "weekly_reminder_email": True
             },
             "schur_v22": {
                 "last_name": "Schur",
@@ -103,7 +104,8 @@ def load_users():
                 "IAR_memberId": "",
                 "IAR_Agency": "",
                 "IAR_Username": "",
-                "IAR_Password": ""
+                "IAR_Password": "",
+                "weekly_reminder_email": True
             },
             "reese_v2": {
                 "last_name": "Reese",
@@ -114,7 +116,8 @@ def load_users():
                 "IAR_memberId": "",
                 "IAR_Agency": "",
                 "IAR_Username": "",
-                "IAR_Password": ""
+                "IAR_Password": "",
+                "weekly_reminder_email": True
             }
         }
         try:
@@ -145,9 +148,13 @@ def load_users():
                 profile[field] = ""
                 modified = True
                 
+        if 'weekly_reminder_email' not in profile:
+            profile['weekly_reminder_email'] = True
+            modified = True
+                
     if modified:
         save_users(users)
-        logger.info("Migrated user database in users.json to support IAR integration fields.")
+        logger.info("Migrated user database in users.json to support IAR integration fields and preferences.")
         
     return users
 
@@ -158,6 +165,36 @@ def save_users(users):
         return True
     except Exception as e:
         logger.error(f"Error saving users file: {e}")
+        return False
+
+SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
+
+def load_settings():
+    if not os.path.exists(SETTINGS_FILE):
+        default_settings = {
+            "allow_iar_status_change": True
+        }
+        try:
+            with open(SETTINGS_FILE, 'w') as f:
+                json.dump(default_settings, f, indent=4)
+        except Exception as e:
+            logger.error(f"Error creating settings.json: {e}")
+        return default_settings
+        
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading settings.json: {e}")
+        return {"allow_iar_status_change": True}
+
+def save_settings(settings):
+    try:
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(settings, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving settings.json: {e}")
         return False
 # Event Documents Configuration & Helpers
 EVENT_DOCS_FILE = os.path.join(DATA_DIR, 'event_documents.json')
@@ -653,6 +690,7 @@ def profile():
         iar_agency_input = request.form.get('iar_agency', '').strip()
         iar_username_input = request.form.get('iar_username', '').strip()
         iar_password_input = request.form.get('iar_password', '')
+        weekly_reminder_email = request.form.get('weekly_reminder_email') == 'yes'
         
         if not first_name:
             error = 'First name is required'
@@ -670,6 +708,7 @@ def profile():
             user['cell_phone'] = format_us_phone(cell_phone)
             user['IAR_Agency'] = iar_agency_input
             user['IAR_Username'] = iar_username_input
+            user['weekly_reminder_email'] = weekly_reminder_email
             if iar_password_input:
                 user['IAR_Password'] = encrypt_password(iar_password_input, app.secret_key)
             
@@ -690,6 +729,7 @@ def profile():
         iar_member_id=user.get('IAR_memberId', ''),
         iar_agency=user.get('IAR_Agency', ''),
         iar_username=user.get('IAR_Username', ''),
+        weekly_reminder_email=user.get('weekly_reminder_email', True),
         error=error,
         success=success
     )
@@ -1131,6 +1171,39 @@ def gsar_lead_export_raw():
         logger.error(f"Error fetching raw export: {e}")
         return f"Error fetching raw export: {str(e)}", 500
 
+def login_to_iar(agency, username, password, urls_called=None):
+    if urls_called is None:
+        urls_called = []
+        
+    req_session = requests.Session()
+    req_session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+    })
+    
+    login_url = "https://auth.iamresponding.com/login/member"
+    urls_called.append(f"GET {login_url}")
+    get_response = req_session.get(login_url, timeout=10)
+    get_response.raise_for_status()
+
+    soup = BeautifulSoup(get_response.text, 'html.parser')
+    token_input = soup.find('input', {'name': '__RequestVerificationToken'})
+    if not token_input:
+        raise Exception("Could not find RequestVerificationToken on login page.")
+        
+    token = token_input.get('value')
+    login_data = {
+        'Input.Agency': agency,
+        'Input.Username': username,
+        'Input.Password': password,
+        'Input.button': 'login',
+        '__RequestVerificationToken': token
+    }
+    
+    urls_called.append(f"POST {login_url}")
+    post_response = req_session.post(login_url, data=login_data, timeout=10)
+    post_response.raise_for_status()
+    return req_session
+
 @app.route('/api/events', methods=['POST'])
 def get_events():
     if session.get('must_change_password'):
@@ -1161,47 +1234,15 @@ def get_events():
 
     logger.info(f"Starting scrape for agency: {agency}, days: {days}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_started"}})
     scrape_start_time = time.time()
-    req_session = requests.Session()
-    req_session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-    })
-
     urls_called = []
 
     try:
-        # Step 1: Get the login page to retrieve the anti-forgery token
-        login_url = "https://auth.iamresponding.com/login/member"
-        urls_called.append(f"GET {login_url}")
-        get_response = req_session.get(login_url)
-        get_response.raise_for_status()
-
-        soup = BeautifulSoup(get_response.text, 'html.parser')
-        token_input = soup.find('input', {'name': '__RequestVerificationToken'})
-        
-        if not token_input:
-            logger.error("Scrape failed: Could not find RequestVerificationToken", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
-            return jsonify({'error': 'Could not find RequestVerificationToken on login page.'}), 500
-        
-        token = token_input.get('value')
-
-        # Step 2: Post the login credentials
-        login_data = {
-            'Input.Agency': agency,
-            'Input.Username': username,
-            'Input.Password': password,
-            'Input.button': 'login',
-            '__RequestVerificationToken': token
-        }
-
-        # The login might result in a redirect, which requests handles automatically
-        urls_called.append(f"POST {login_url}")
-        post_response = req_session.post(login_url, data=login_data)
-        post_response.raise_for_status()
+        req_session = login_to_iar(agency, username, password, urls_called)
 
         # Step 3: Fetch the Event List
         event_list_url = f"https://coordinator.iamresponding.com/api/EventList?days={days}"
         urls_called.append(f"GET {event_list_url}")
-        event_list_response = req_session.get(event_list_url)
+        event_list_response = req_session.get(event_list_url, timeout=10)
         
         if event_list_response.status_code != 200:
             logger.error(f"Scrape failed: Event list status code {event_list_response.status_code}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
@@ -1241,7 +1282,7 @@ def get_events():
                 
             detail_url = f"https://coordinator.iamresponding.com/api/EventDetail?eventID={event_id}&recurrenceStartDate={central_start_str}"
             urls_called.append(f"GET {detail_url}")
-            detail_response = req_session.get(detail_url)
+            detail_response = req_session.get(detail_url, timeout=10)
             
             if detail_response.status_code == 200:
                 try:
@@ -1257,6 +1298,19 @@ def get_events():
                     all_attendees = detail_data.get('eventAttendees', [])
                     attending = [a for a in all_attendees if a.get('response') == 1]
                     
+                    # Find logged in user's response status (0=not sure, 1=attending, 2=not attending)
+                    user_member_id = str(current_user.get('IAR_memberId', '')).strip() if current_user else ""
+                    user_response = 0  # default to "not sure" (0)
+                    for a in all_attendees:
+                        member = a.get('member', {})
+                        m_id = str(member.get('memberId') or member.get('memberID') or member.get('id', '')).strip()
+                        if user_member_id and m_id == user_member_id:
+                            # Use response if it's not None, otherwise default to 0
+                            user_response = a.get('response')
+                            if user_response is None:
+                                user_response = 0
+                            break
+
                     # Check documents permission
                     is_attending = check_user_is_attending(current_user, all_attendees)
                     if is_attending:
@@ -1272,7 +1326,9 @@ def get_events():
                         'eventEnd': event_end,
                         'description': description,
                         'attendees': attending,
-                        'documents': allowed_docs
+                        'documents': allowed_docs,
+                        'user_response': user_response,
+                        'recurrence_date': central_start_str
                     })
                     
                     # Business Data Logging
@@ -1297,11 +1353,174 @@ def get_events():
         logger.info(f"Scrape completed successfully in {scrape_duration:.2f}s. Fetched {len(detailed_events)} events.", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_completed", "duration_seconds": str(round(scrape_duration, 2)), "events_count": str(len(detailed_events))}})
 
         session['attending_event_ids'] = attending_ids
-        return jsonify({'events': detailed_events, 'urls': urls_called})
+        settings = load_settings()
+        return jsonify({
+            'events': detailed_events,
+            'urls': urls_called,
+            'allow_iar_status_change': settings.get('allow_iar_status_change', True)
+        })
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Scrape failed: Network request error - {str(e)}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
         return jsonify({'error': 'Network request failed', 'details': str(e)}), 500
+
+@app.route('/api/event/respond', methods=['POST'])
+def respond_to_event():
+    if session.get('must_change_password'):
+        return jsonify({'error': 'Password change required.'}), 403
+    if not session.get('authenticated'):
+        return jsonify({'error': 'Unauthorized. Please login again.'}), 401
+        
+    settings = load_settings()
+    if not settings.get('allow_iar_status_change', True):
+        return jsonify({'error': 'Event response changes are currently disabled by the administrator.'}), 403
+
+    data = request.json or {}
+    event_id = data.get('eventId')
+    recurrence_date = data.get('recurrenceDate')
+    new_response = data.get('response')
+
+    if event_id is None or recurrence_date is None or new_response is None:
+        return jsonify({'error': 'Missing required fields: eventId, recurrenceDate, response'}), 400
+
+    try:
+        new_response = int(new_response)
+        if new_response not in (0, 1, 2):
+            return jsonify({'error': 'Invalid response value. Must be 0, 1, or 2.'}), 400
+    except ValueError:
+        return jsonify({'error': 'Response must be an integer.'}), 400
+
+    users = load_users()
+    user_key = session.get('user_key')
+    user = users.get(user_key) if user_key else None
+    
+    if not user:
+        return jsonify({'error': 'User session not found.'}), 404
+
+    agency = user.get('IAR_Agency', '')
+    username = user.get('IAR_Username', '')
+    enc_password = user.get('IAR_Password', '')
+    password = decrypt_password(enc_password, app.secret_key) if enc_password else ''
+
+    if not all([agency, username, password]):
+        return jsonify({'error': 'Please update your IAR credentials in your profile.'}), 400
+
+    try:
+        # Step 1: Login to IamResponding
+        req_session = login_to_iar(agency, username, password)
+
+        # Step 2: Fetch the specific EventDetail to get the current attendee list and find user's record
+        detail_url = f"https://coordinator.iamresponding.com/api/EventDetail?eventID={event_id}&recurrenceStartDate={recurrence_date}"
+        detail_response = req_session.get(detail_url, timeout=10)
+        
+        if detail_response.status_code != 200:
+            return jsonify({'error': f'Failed to fetch event details: {detail_response.status_code}'}), 500
+
+        detail_data = detail_response.json()
+        all_attendees = detail_data.get('eventAttendees', [])
+        
+        user_member_id = str(user.get('IAR_memberId', '')).strip()
+        
+        # Step 3: Find user's attendee record
+        target_attendee = None
+        for a in all_attendees:
+            member = a.get('member', {})
+            m_id = str(member.get('memberId') or member.get('memberID') or member.get('id', '')).strip()
+            if user_member_id and m_id == user_member_id:
+                target_attendee = a
+                break
+
+        # Step 4: Construct the payload explicitly with all required top-level keys
+        payload = {
+            "eventId": 0,
+            "response": new_response,
+            "member": target_attendee.get('member') if target_attendee else {
+                "memberId": int(user_member_id) if user_member_id.isdigit() else 0,
+                "name": user.get('first_name', ''),
+                "lastName": f"{user.get('last_name', '')} {user.get('victor_number', '')}".strip(),
+                "memberEmail": user.get('email', ''),
+                "secondaryEmail": "",
+                "textMemberAddress": f"{user.get('cell_phone', '').replace('-', '')}@txt.att.net" if user.get('cell_phone') else "",
+                "smsPhoneNumber": None,
+                "isSmsAgreed": False
+            },
+            "recurrenceDate": recurrence_date,
+            "id": event_id,
+            "updateAll": False
+        }
+
+        # Step 5: Send PUT request to EventAttendee
+        put_url = "https://coordinator.iamresponding.com/api/EventAttendee"
+        put_response = req_session.put(put_url, json=payload, timeout=10)
+        
+        if put_response.status_code not in (200, 204):
+            logger.error(f"Failed to update event response on IAR: {put_response.status_code} - {put_response.text}")
+            return jsonify({'error': f'Failed to update status on IamResponding: {put_response.status_code}'}), 500
+
+        # Step 6: Fetch updated details for this specific event to return to frontend
+        detail_response = req_session.get(detail_url, timeout=10)
+        if detail_response.status_code == 200:
+            detail_data = detail_response.json()
+            subject = detail_data.get('subject', '')
+            event_start = detail_data.get('eventStart', '')
+            event_end = detail_data.get('eventEnd', '')
+            description = detail_data.get('description', '')
+            
+            all_attendees = detail_data.get('eventAttendees', [])
+            attending = [a for a in all_attendees if a.get('response') == 1]
+            
+            # Find user's new response status
+            user_response = 0
+            for a in all_attendees:
+                member = a.get('member', {})
+                m_id = str(member.get('memberId') or member.get('memberID') or member.get('id', '')).strip()
+                if user_member_id and m_id == user_member_id:
+                    user_response = a.get('response')
+                    if user_response is None:
+                        user_response = 0
+                    break
+            
+            # Check documents permission
+            event_docs = load_event_documents()
+            is_attending = check_user_is_attending(user, all_attendees)
+            is_admin = session.get('is_admin', False)
+            allowed_docs = []
+            if is_admin or is_attending:
+                allowed_docs = event_docs.get(str(event_id), [])
+                
+            # If the user is attending, ensure this event ID is in their session list
+            attending_event_ids = session.get('attending_event_ids', [])
+            if is_attending:
+                if str(event_id) not in attending_event_ids:
+                    attending_event_ids.append(str(event_id))
+            else:
+                if str(event_id) in attending_event_ids:
+                    try:
+                        attending_event_ids.remove(str(event_id))
+                    except ValueError:
+                        pass
+            session['attending_event_ids'] = attending_event_ids
+
+            updated_event = {
+                'id': event_id,
+                'subject': subject,
+                'eventStart': event_start,
+                'eventEnd': event_end,
+                'description': description,
+                'attendees': attending,
+                'documents': allowed_docs,
+                'user_response': user_response,
+                'recurrence_date': recurrence_date
+            }
+            logger.info(f"Successfully updated response to {new_response} for user {user_key} on event {event_id}", extra={"tags": {"event_type": "app_telemetry", "action": "respond_success"}})
+            return jsonify({'success': True, 'event': updated_event})
+        else:
+            logger.info(f"Successfully updated response to {new_response} for user {user_key} on event {event_id} (could not fetch detail)", extra={"tags": {"event_type": "app_telemetry", "action": "respond_success"}})
+            return jsonify({'success': True, 'message': 'Status updated, but failed to fetch event details.'})
+
+    except Exception as e:
+        logger.error(f"Error responding to event: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 def load_newsletters():
     sheet_url = os.environ.get('NEWSLETTER_SHEET_URL')
@@ -1557,6 +1776,7 @@ def get_admin_users():
         profile_copy.pop('IAR_Password', None)
         profile_copy['is_active'] = profile_copy.get('is_active', True)
         profile_copy['is_admin'] = profile_copy.get('is_admin', False)
+        profile_copy['weekly_reminder_email'] = profile_copy.get('weekly_reminder_email', True)
         user_list.append(profile_copy)
     return jsonify(user_list)
 
@@ -1576,6 +1796,7 @@ def create_admin_user():
     iar_agency = data.get('IAR_Agency', '').strip()
     iar_username = data.get('IAR_Username', '').strip()
     is_admin = bool(data.get('is_admin', False))
+    weekly_reminder_email = bool(data.get('weekly_reminder_email', True))
     
     if not last_name or not victor_number:
         return jsonify({'error': 'Last Name and Victor Number are required.'}), 400
@@ -1600,6 +1821,7 @@ def create_admin_user():
         'is_active': True,
         'is_default': True,
         'is_admin': is_admin,
+        'weekly_reminder_email': weekly_reminder_email,
         'password_hash': generate_password_hash("password123")
     }
     save_users(users)
@@ -1631,6 +1853,7 @@ def update_admin_user():
     iar_username = data.get('IAR_Username', '').strip()
     is_active = data.get('is_active', True)
     is_admin = bool(data.get('is_admin', False))
+    weekly_reminder_email = bool(data.get('weekly_reminder_email', True))
     
     if not last_name or not victor_number:
         return jsonify({'error': 'Last Name and Victor Number are required.'}), 400
@@ -1661,6 +1884,7 @@ def update_admin_user():
     profile['IAR_Username'] = iar_username
     profile['is_active'] = is_active
     profile['is_admin'] = is_admin
+    profile['weekly_reminder_email'] = weekly_reminder_email
     
     if new_key != old_key:
         users[new_key] = profile
@@ -1719,6 +1943,36 @@ def reset_admin_user_password():
     save_users(users)
     logger.info(f"Admin {session.get('last_name')} reset password for user {user_key}")
     return jsonify({'success': True})
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+def admin_settings():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+    if not is_session_admin():
+        logger.warning(f"Unauthorized System Settings access attempt by {session.get('last_name')}")
+        return redirect(url_for('index'))
+        
+    error = None
+    success = None
+    settings = load_settings()
+    
+    if request.method == 'POST':
+        allow_iar_status_change = request.form.get('allow_iar_status_change') == 'yes'
+        settings['allow_iar_status_change'] = allow_iar_status_change
+        if save_settings(settings):
+            success = "Settings saved successfully!"
+            logger.info(f"System settings updated by admin {session.get('last_name')}")
+        else:
+            error = "Failed to save settings. Please try again."
+            
+    return render_template(
+        'settings.html',
+        allow_iar_status_change=settings.get('allow_iar_status_change', True),
+        error=error,
+        success=success
+    )
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
