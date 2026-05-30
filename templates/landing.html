@@ -387,6 +387,20 @@
             transform: translateY(-1px);
         }
 
+        .card-settings-admin::before {
+            background: linear-gradient(90deg, #ec4899, #f43f5e);
+        }
+
+        .btn-settings-admin {
+            background-color: #ec4899;
+            color: white;
+        }
+
+        .btn-settings-admin:hover {
+            background-color: #db2777;
+            transform: translateY(-1px);
+        }
+
         .section-divider {
             display: flex;
             align-items: center;
@@ -568,6 +582,16 @@
                     </p>
                 </div>
                 <a href="/admin/users" class="btn-portal btn-users-admin">Manage Users</a>
+            </div>
+
+            <div class="card card-settings-admin">
+                <div>
+                    <h2 class="card-title">System Settings</h2>
+                    <p class="card-description">
+                        Maintain portal parameters: toggle feature availability, response overrides, and other global system configurations.
+                    </p>
+                </div>
+                <a href="/admin/settings" class="btn-portal btn-settings-admin">System Settings</a>
             </div>
             {% endif %}
 

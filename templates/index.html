@@ -341,6 +341,50 @@
             font-size: 0.9rem;
         }
 
+        /* Response Buttons Styling */
+        .btn-resp-outline {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+        
+        .btn-resp-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.03);
+            border-color: var(--text-muted);
+        }
+
+        .resp-attending {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .resp-not-attending {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .resp-not-sure {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* Tiny spinner for buttons */
+        .spinner-tiny {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--text-main);
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
         @keyframes fadeInDown {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -503,6 +547,9 @@
                     lastUrls = data.urls;
                 }
 
+                // Store status change permission flag
+                window.allowIarStatusChange = data.allow_iar_status_change !== false;
+
                 renderTable(data.events);
                 showStatus('', '');
             } catch (error) {
@@ -656,182 +703,298 @@ END:VCALENDAR`;
                 return;
             }
 
+            lastFetchedEvents = events;
+
             events.forEach(event => {
                 const tr = document.createElement('tr');
-                
-                // Highlight row if 0 attendees
-                if (!event.attendees || event.attendees.length === 0) {
-                    tr.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                    tr.style.borderLeft = '4px solid var(--error-color)';
-                }
-                
-                // Event Start & End
-                const tdStart = document.createElement('td');
-                
-                const startDiv = document.createElement('div');
-                startDiv.style.fontSize = '0.8rem';
-                startDiv.style.whiteSpace = 'nowrap';
-                startDiv.innerHTML = `<strong>Start:</strong> ${formatDate(event.eventStart)}`;
-                tdStart.appendChild(startDiv);
-                
-                if (event.eventEnd) {
-                    const endDiv = document.createElement('div');
-                    endDiv.style.fontSize = '0.8rem';
-                    endDiv.style.whiteSpace = 'nowrap';
-                    endDiv.style.marginTop = '0.3rem';
-                    endDiv.innerHTML = `<strong>End:</strong> ${formatDate(event.eventEnd)}`;
-                    tdStart.appendChild(endDiv);
-                }
-
-                const btnContainer = document.createElement('div');
-                btnContainer.style.display = 'flex';
-                btnContainer.style.flexDirection = 'row';
-                btnContainer.style.flexWrap = 'wrap';
-                btnContainer.style.gap = '0.4rem';
-                btnContainer.style.marginTop = '0.75rem';
-
-                const gCalBtn = document.createElement('a');
-                gCalBtn.className = 'btn-secondary';
-                gCalBtn.style.padding = '0.25rem 0.4rem';
-                gCalBtn.style.fontSize = '0.7rem';
-                gCalBtn.style.display = 'inline-flex';
-                gCalBtn.style.alignItems = 'center';
-                gCalBtn.style.gap = '4px';
-                gCalBtn.style.textDecoration = 'none';
-                gCalBtn.style.width = 'fit-content';
-                gCalBtn.target = '_blank';
-                gCalBtn.rel = 'noopener noreferrer';
-                gCalBtn.href = createGoogleCalendarUrl(event);
-                gCalBtn.title = 'Add to Google Calendar';
-                gCalBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Google`;
-
-                const calBtn = document.createElement('button');
-                calBtn.className = 'btn-secondary';
-                calBtn.style.padding = '0.25rem 0.4rem';
-                calBtn.style.fontSize = '0.7rem';
-                calBtn.style.display = 'inline-flex';
-                calBtn.style.alignItems = 'center';
-                calBtn.style.gap = '4px';
-                calBtn.style.width = 'fit-content';
-                calBtn.title = 'Download .ics file';
-                calBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> .ics`;
-                
-                calBtn.addEventListener('click', () => {
-                    downloadICS(event);
-                });
-                
-                btnContainer.appendChild(gCalBtn);
-                btnContainer.appendChild(calBtn);
-                tdStart.appendChild(btnContainer);
-                
-                // Subject
-                const tdSubject = document.createElement('td');
-                const subjectText = document.createElement('strong');
-                subjectText.textContent = event.subject || 'No Subject';
-                tdSubject.appendChild(subjectText);
-                if (event.description) {
-                    const desc = document.createElement('div');
-                    desc.style.fontSize = '0.85rem';
-                    desc.style.color = 'var(--text-muted)';
-                    desc.style.marginTop = '0.5rem';
-                    
-                    if (event.description.length > 100) {
-                        const shortText = event.description.substring(0, 100) + '...';
-                        desc.innerHTML = `<span>${shortText}</span> <a href="#" style="color: var(--primary-color); text-decoration: none; margin-left: 5px;" class="expand-btn">Read more</a>`;
-                        
-                        const expandBtn = desc.querySelector('.expand-btn');
-                        expandBtn.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            if (expandBtn.textContent === 'Read more') {
-                                desc.firstElementChild.textContent = event.description;
-                                expandBtn.textContent = ' Show less';
-                            } else {
-                                desc.firstElementChild.textContent = shortText;
-                                expandBtn.textContent = 'Read more';
-                            }
-                        });
-                    } else {
-                        desc.textContent = event.description;
-                    }
-                    tdSubject.appendChild(desc);
-                }
-
-                // Render document pills
-                if (event.documents && event.documents.length > 0) {
-                    const docsContainer = document.createElement('div');
-                    docsContainer.className = 'event-docs-container';
-                    docsContainer.style.marginTop = '0.75rem';
-                    docsContainer.style.display = 'flex';
-                    docsContainer.style.flexWrap = 'wrap';
-                    docsContainer.style.gap = '0.5rem';
-                    
-                    event.documents.forEach(doc => {
-                        const docPill = document.createElement('div');
-                        docPill.style.display = 'inline-flex';
-                        docPill.style.alignItems = 'center';
-                        docPill.style.gap = '0.35rem';
-                        docPill.style.backgroundColor = 'rgba(6, 182, 212, 0.08)';
-                        docPill.style.border = '1px solid rgba(6, 182, 212, 0.2)';
-                        docPill.style.borderRadius = '6px';
-                        docPill.style.padding = '0.25rem 0.5rem';
-                        docPill.style.fontSize = '0.8rem';
-                        
-                        const docLink = document.createElement('a');
-                        docLink.href = `/api/event-document/${event.id}/${encodeURIComponent(doc.filename)}`;
-                        docLink.target = '_blank';
-                        docLink.rel = 'noopener noreferrer';
-                        docLink.style.color = '#22d3ee';
-                        docLink.style.textDecoration = 'none';
-                        docLink.style.fontWeight = '500';
-                        docLink.style.display = 'inline-flex';
-                        docLink.style.alignItems = 'center';
-                        docLink.style.gap = '0.25rem';
-                        docLink.innerHTML = `
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #22d3ee; flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                            <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${doc.filename}</span>
-                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal; margin-left: 2px;">(${doc.file_size})</span>
-                        `;
-                        docPill.appendChild(docLink);
-                        
-                        docsContainer.appendChild(docPill);
-                    });
-                    
-                    tdSubject.appendChild(docsContainer);
-                }
-
-                // Attendees
-                const tdAttendees = document.createElement('td');
-                if (event.attendees && event.attendees.length > 0) {
-                    // Sort attendees alphabetically by name
-                    event.attendees.sort((a, b) => {
-                        const nameA = (a.member && a.member.name) ? a.member.name.toLowerCase() : '';
-                        const nameB = (b.member && b.member.name) ? b.member.name.toLowerCase() : '';
-                        return nameA.localeCompare(nameB);
-                    });
-                    
-                    event.attendees.forEach(a => {
-                        const fullName = getAttendeeName(a);
-                        const span = document.createElement('span');
-                        span.className = 'attendee-tag';
-                        span.textContent = fullName;
-                        // Store the full object in a title attribute for debugging/hovering
-                        span.title = JSON.stringify(a);
-                        tdAttendees.appendChild(span);
-                    });
-                } else {
-                    const none = document.createElement('div');
-                    none.className = 'no-attendees';
-                    none.textContent = 'No attending members';
-                    tdAttendees.appendChild(none);
-                }
-
-                tr.appendChild(tdStart);
-                tr.appendChild(tdSubject);
-                tr.appendChild(tdAttendees);
+                tr.id = `event-row-${event.id}`;
+                populateEventRow(event, tr);
                 tbody.appendChild(tr);
             });
 
             resultsContainer.style.display = 'block';
+        }
+
+        function populateEventRow(event, tr) {
+            tr.innerHTML = '';
+            
+            // Highlight row if 0 attendees
+            if (!event.attendees || event.attendees.length === 0) {
+                tr.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                tr.style.borderLeft = '4px solid var(--error-color)';
+            } else {
+                tr.style.backgroundColor = '';
+                tr.style.borderLeft = '';
+            }
+            
+            // Event Start & End
+            const tdStart = document.createElement('td');
+            
+            const startDiv = document.createElement('div');
+            startDiv.style.fontSize = '0.8rem';
+            startDiv.style.whiteSpace = 'nowrap';
+            startDiv.innerHTML = `<strong>Start:</strong> ${formatDate(event.eventStart)}`;
+            tdStart.appendChild(startDiv);
+            
+            if (event.eventEnd) {
+                const endDiv = document.createElement('div');
+                endDiv.style.fontSize = '0.8rem';
+                endDiv.style.whiteSpace = 'nowrap';
+                endDiv.style.marginTop = '0.3rem';
+                endDiv.innerHTML = `<strong>End:</strong> ${formatDate(event.eventEnd)}`;
+                tdStart.appendChild(endDiv);
+            }
+
+            const btnContainer = document.createElement('div');
+            btnContainer.style.display = 'flex';
+            btnContainer.style.flexDirection = 'row';
+            btnContainer.style.flexWrap = 'wrap';
+            btnContainer.style.gap = '0.4rem';
+            btnContainer.style.marginTop = '0.75rem';
+
+            const gCalBtn = document.createElement('a');
+            gCalBtn.className = 'btn-secondary';
+            gCalBtn.style.padding = '0.25rem 0.4rem';
+            gCalBtn.style.fontSize = '0.7rem';
+            gCalBtn.style.display = 'inline-flex';
+            gCalBtn.style.alignItems = 'center';
+            gCalBtn.style.gap = '4px';
+            gCalBtn.style.textDecoration = 'none';
+            gCalBtn.style.width = 'fit-content';
+            gCalBtn.target = '_blank';
+            gCalBtn.rel = 'noopener noreferrer';
+            gCalBtn.href = createGoogleCalendarUrl(event);
+            gCalBtn.title = 'Add to Google Calendar';
+            gCalBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Google`;
+
+            const calBtn = document.createElement('button');
+            calBtn.className = 'btn-secondary';
+            calBtn.style.padding = '0.25rem 0.4rem';
+            calBtn.style.fontSize = '0.7rem';
+            calBtn.style.display = 'inline-flex';
+            calBtn.style.alignItems = 'center';
+            calBtn.style.gap = '4px';
+            calBtn.style.width = 'fit-content';
+            calBtn.title = 'Download .ics file';
+            calBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> .ics`;
+            
+            calBtn.addEventListener('click', () => {
+                downloadICS(event);
+            });
+            
+            btnContainer.appendChild(gCalBtn);
+            btnContainer.appendChild(calBtn);
+            tdStart.appendChild(btnContainer);
+
+            // Attendance Response buttons container
+            const respContainer = document.createElement('div');
+            respContainer.className = 'response-btn-container';
+            respContainer.style.display = 'flex';
+            respContainer.style.flexDirection = 'row';
+            respContainer.style.gap = '0.3rem';
+            respContainer.style.marginTop = '0.75rem';
+            respContainer.style.borderTop = '1px solid var(--border-color)';
+            respContainer.style.paddingTop = '0.75rem';
+            
+            const responses = [
+                { value: 1, label: 'Attending', activeClass: 'resp-attending', defaultClass: 'btn-resp-outline' },
+                { value: 2, label: 'Not Attending', activeClass: 'resp-not-attending', defaultClass: 'btn-resp-outline' },
+                { value: 0, label: 'Not Sure', activeClass: 'resp-not-sure', defaultClass: 'btn-resp-outline' }
+            ];
+            
+            const isFeatureDisabled = window.allowIarStatusChange === false;
+            
+            responses.forEach(resp => {
+                const btn = document.createElement('button');
+                btn.dataset.value = resp.value;
+                btn.style.fontSize = '0.7rem';
+                btn.style.padding = '0.3rem 0.5rem';
+                btn.style.borderRadius = '6px';
+                btn.style.fontWeight = '600';
+                btn.style.flex = '1';
+                btn.style.textAlign = 'center';
+                btn.style.transition = 'all 0.2s ease';
+                
+                const isCurrent = event.user_response === resp.value;
+                if (isCurrent) {
+                    btn.className = resp.activeClass;
+                    btn.disabled = true;
+                    btn.style.cursor = 'default';
+                    btn.innerHTML = `<span style="margin-right:2px;">✓</span> ${resp.label}`;
+                } else {
+                    btn.className = resp.defaultClass;
+                    btn.textContent = resp.label;
+                    
+                    if (isFeatureDisabled) {
+                        btn.disabled = true;
+                        btn.style.cursor = 'not-allowed';
+                        btn.style.opacity = '0.5';
+                    } else {
+                        btn.style.cursor = 'pointer';
+                        btn.addEventListener('click', async () => {
+                            const buttons = respContainer.querySelectorAll('button');
+                            buttons.forEach(b => b.disabled = true);
+                            
+                            const originalText = btn.innerHTML;
+                            btn.innerHTML = `<span class="spinner-tiny"></span> Saving...`;
+                            
+                            try {
+                                const response = await fetch('/api/event/respond', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        eventId: event.id,
+                                        recurrenceDate: event.recurrence_date,
+                                        response: resp.value
+                                    })
+                                });
+                                
+                                const data = await response.json();
+                                if (!response.ok) {
+                                    throw new Error(data.error || 'Failed to update attendance');
+                                }
+                                
+                                // In-place refresh of the single row!
+                                if (data.event) {
+                                    const idx = lastFetchedEvents.findIndex(e => e.id === event.id);
+                                    if (idx !== -1) {
+                                        lastFetchedEvents[idx] = data.event;
+                                    }
+                                    populateEventRow(data.event, tr);
+                                } else {
+                                    // Local fallback: update status locally so we don't rescrape all events
+                                    event.user_response = resp.value;
+                                    populateEventRow(event, tr);
+                                }
+                            } catch (err) {
+                                alert('Error: ' + err.message);
+                                btn.innerHTML = originalText;
+                                buttons.forEach(b => {
+                                    if (parseInt(b.dataset.value) !== event.user_response) {
+                                        b.disabled = false;
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                respContainer.appendChild(btn);
+            });
+            
+            tdStart.appendChild(respContainer);
+            
+            if (isFeatureDisabled) {
+                const note = document.createElement('div');
+                note.style.fontSize = '0.75rem';
+                note.style.color = 'var(--text-muted)';
+                note.style.textAlign = 'center';
+                note.style.marginTop = '0.4rem';
+                note.style.fontStyle = 'italic';
+                note.textContent = 'update attendance status in IAR';
+                tdStart.appendChild(note);
+            }
+            tr.appendChild(tdStart);
+            
+            // Subject
+            const tdSubject = document.createElement('td');
+            const subjectText = document.createElement('strong');
+            subjectText.textContent = event.subject || 'No Subject';
+            tdSubject.appendChild(subjectText);
+            if (event.description) {
+                const desc = document.createElement('div');
+                desc.style.fontSize = '0.85rem';
+                desc.style.color = 'var(--text-muted)';
+                desc.style.marginTop = '0.5rem';
+                
+                if (event.description.length > 100) {
+                    const shortText = event.description.substring(0, 100) + '...';
+                    desc.innerHTML = `<span>${shortText}</span> <a href="#" style="color: var(--primary-color); text-decoration: none; margin-left: 5px;" class="expand-btn">Read more</a>`;
+                    
+                    const expandBtn = desc.querySelector('.expand-btn');
+                    expandBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (expandBtn.textContent === 'Read more') {
+                            desc.firstElementChild.textContent = event.description;
+                            expandBtn.textContent = ' Show less';
+                        } else {
+                            desc.firstElementChild.textContent = shortText;
+                            expandBtn.textContent = 'Read more';
+                        }
+                    });
+                } else {
+                    desc.textContent = event.description;
+                }
+                tdSubject.appendChild(desc);
+            }
+
+            // Render document pills
+            if (event.documents && event.documents.length > 0) {
+                const docsContainer = document.createElement('div');
+                docsContainer.className = 'event-docs-container';
+                docsContainer.style.marginTop = '0.75rem';
+                docsContainer.style.display = 'flex';
+                docsContainer.style.flexWrap = 'wrap';
+                docsContainer.style.gap = '0.5rem';
+                
+                event.documents.forEach(doc => {
+                    const docPill = document.createElement('div');
+                    docPill.style.display = 'inline-flex';
+                    docPill.style.alignItems = 'center';
+                    docPill.style.gap = '0.35rem';
+                    docPill.style.backgroundColor = 'rgba(6, 182, 212, 0.08)';
+                    docPill.style.border = '1px solid rgba(6, 182, 212, 0.2)';
+                    docPill.style.borderRadius = '6px';
+                    docPill.style.padding = '0.25rem 0.5rem';
+                    docPill.style.fontSize = '0.8rem';
+                    
+                    const docLink = document.createElement('a');
+                    docLink.href = `/api/event-document/${event.id}/${encodeURIComponent(doc.filename)}`;
+                    docLink.target = '_blank';
+                    docLink.rel = 'noopener noreferrer';
+                    docLink.style.color = '#22d3ee';
+                    docLink.style.textDecoration = 'none';
+                    docLink.style.fontWeight = '500';
+                    docLink.style.display = 'inline-flex';
+                    docLink.style.alignItems = 'center';
+                    docLink.style.gap = '0.25rem';
+                    docLink.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #22d3ee; flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${doc.filename}</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal; margin-left: 2px;">(${doc.file_size})</span>
+                    `;
+                    docPill.appendChild(docLink);
+                    
+                    docsContainer.appendChild(docPill);
+                });
+                
+                tdSubject.appendChild(docsContainer);
+            }
+            tr.appendChild(tdSubject);
+
+            // Attendees
+            const tdAttendees = document.createElement('td');
+            if (event.attendees && event.attendees.length > 0) {
+                event.attendees.sort((a, b) => {
+                    const nameA = (a.member && a.member.name) ? a.member.name.toLowerCase() : '';
+                    const nameB = (b.member && b.member.name) ? b.member.name.toLowerCase() : '';
+                    return nameA.localeCompare(nameB);
+                });
+                
+                event.attendees.forEach(a => {
+                    const fullName = getAttendeeName(a);
+                    const span = document.createElement('span');
+                    span.className = 'attendee-tag';
+                    span.textContent = fullName;
+                    span.title = JSON.stringify(a);
+                    tdAttendees.appendChild(span);
+                });
+            } else {
+                const none = document.createElement('div');
+                none.className = 'no-attendees';
+                none.textContent = 'No attending members';
+                tdAttendees.appendChild(none);
+            }
+            tr.appendChild(tdAttendees);
         }
 
     });
