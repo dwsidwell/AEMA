@@ -881,11 +881,12 @@
             const weeklyBadge = document.createElement('span');
             const isSubscribed = user.weekly_reminder_email !== false;
             weeklyBadge.className = `status-badge ${isSubscribed ? 'status-active' : 'status-inactive'}`;
-            weeklyBadge.setAttribute('data-tooltip', isSubscribed ? 'Subscribed to weekly reminders' : 'Unsubscribed from weekly reminders');
+            weeklyBadge.setAttribute('data-tooltip', 'Click to toggle weekly reminder');
             weeklyBadge.innerHTML = `
                 <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${isSubscribed ? '#10b981' : '#ef4444'};"></span>
                 <span>${isSubscribed ? 'Yes' : 'No'}</span>
             `;
+            weeklyBadge.addEventListener('click', () => toggleUserWeeklyEmail(user));
             tdWeekly.appendChild(weeklyBadge);
 
             // Status Toggle
@@ -1024,6 +1025,45 @@
         } catch (err) {
             console.error(err);
             showAlert('error', 'An error occurred during updating status.');
+        }
+    }
+
+    // Weekly reminder toggle inline
+    async function toggleUserWeeklyEmail(user) {
+        const currentSubscribed = user.weekly_reminder_email !== false;
+        const nextSubscribed = !currentSubscribed;
+        try {
+            const response = await fetch('/api/admin/users', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_key: user.user_key,
+                    first_name: user.first_name || '',
+                    last_name: user.last_name || '',
+                    victor_number: user.victor_number || '',
+                    email: user.email || '',
+                    cell_phone: user.cell_phone || '',
+                    iar_first_name: user.iar_first_name || '',
+                    iar_last_name: user.iar_last_name || '',
+                    IAR_memberId: user.IAR_memberId || '',
+                    IAR_Agency: user.IAR_Agency || '',
+                    IAR_Username: user.IAR_Username || '',
+                    is_active: user.is_active,
+                    is_admin: !!user.is_admin,
+                    weekly_reminder_email: nextSubscribed
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                showAlert('success', `Weekly reminder setting updated for ${user.first_name} ${user.last_name}.`);
+                loadUsers();
+            } else {
+                showAlert('error', data.error || 'Failed to update weekly reminder setting.');
+            }
+        } catch (err) {
+            console.error(err);
+            showAlert('error', 'An error occurred during updating weekly reminder setting.');
         }
     }
 
