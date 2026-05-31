@@ -167,7 +167,7 @@ def save_users(users):
         logger.error(f"Error saving users file: {e}")
         return False
 
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json')
+SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
 
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
