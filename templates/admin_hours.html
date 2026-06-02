@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roster Hours & Requirements Admin - Volunteer Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent-color: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-tag {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto 4rem auto;
+            padding: 0 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin: 0;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-back:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+        }
+
+        /* Search Controls */
+        .search-panel {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem 1.75rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            flex-grow: 1;
+            min-width: 280px;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: rgba(15, 23, 42, 0.5);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+        }
+
+        .search-label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Layout Columns */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 1100px) {
+            .layout-grid {
+                grid-template-columns: 1fr 400px;
+            }
+        }
+
+        /* Detail Breakout Box */
+        .detail-panel {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 2rem;
+            height: fit-content;
+            box-sizing: border-box;
+        }
+
+        .detail-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .detail-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, #60a5fa, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+
+        .detail-card {
+            background-color: rgba(15, 23, 42, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .detail-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Tabbed Tables */
+        .tabs-header {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .dashboard-section {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* Tables styles */
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background-color: rgba(15, 23, 42, 0.4);
+            border-bottom: 2px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            color: var(--text-main);
+            white-space: nowrap;
+        }
+
+        .roster-row {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        .roster-row:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .roster-row.selected {
+            background-color: rgba(59, 130, 246, 0.12);
+        }
+
+        .cell-bold {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .cell-hours {
+            font-weight: 700;
+            color: var(--success-color);
+        }
+
+        .cell-met-txt {
+            color: var(--success-color);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .cell-pending-txt {
+            color: var(--warning-color);
+            font-weight: 600;
+        }
+
+        /* Cells background styling matching Sheets document */
+        .status-green {
+            background-color: rgba(16, 185, 129, 0.15) !important;
+            color: #34d399 !important;
+        }
+
+        .status-red {
+            background-color: rgba(245, 158, 11, 0.12) !important;
+            color: #fbbf24 !important;
+        }
+
+        .status-na {
+            background-color: rgba(30, 41, 59, 0.2) !important;
+            color: #64748b !important;
+        }
+
+        /* Roster Member Details grid styles */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .detail-mini-card {
+            background-color: rgba(15, 23, 42, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem;
+        }
+
+        .detail-mini-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .detail-mini-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 0.25rem;
+        }
+
+        /* Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div style="color: var(--text-main); font-size: 1.1rem; font-weight: 500; letter-spacing: 0.05em;">Syncing Spreadsheet Data...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <div class="navbar-user">
+            <span class="user-tag">{{ session.get('last_name') }} ({{ session.get('victor_number') }})</span>
+            <a href="/profile" class="btn-nav-outline">Profile</a>
+            <a href="/" class="btn-nav-outline">Home</a>
+            <a href="/logout" class="btn-nav-outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <div style="flex: 1; min-width: 280px;">
+                <h1>Roster Hours & Requirements Admin</h1>
+                <p class="subtitle">Complete hours logs and membership requirement tracking for all roster volunteers.</p>
+            </div>
+            <a href="/" class="btn-back" id="btnBack">&larr; Back to Portal</a>
+        </header>
+
+        {% if error %}
+        <div class="alert-banner" style="background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 1.25rem; border-radius: 12px; margin-bottom: 2rem; font-size: 0.95rem;">
+            <strong>Spreadsheet Sync Notice:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Interactive Search Bar -->
+        <div class="search-panel">
+            <span class="search-label">Filter Volunteer Name:</span>
+            <div class="search-input-wrapper">
+                <input type="text" id="searchInput" class="search-input" placeholder="Type a name or Victor number (e.g. Alvarez, V26, Schur)...">
+            </div>
+            <button id="clearSearchBtn" class="btn-nav-outline" style="padding: 0.75rem 1rem;">Clear</button>
+        </div>
+
+        <div class="layout-grid">
+            <!-- Left Side: Table of Roster Rows -->
+            <div class="dashboard-section">
+                <div class="tabs-header">
+                    <button class="tab-btn active" onclick="switchTab('hoursTab')">Volunteer Hours YTD</button>
+                    <button class="tab-btn" onclick="switchTab('reqTab')">Minimum Requirements</button>
+                </div>
+
+                <!-- Tab 1: Hours Table -->
+                <div id="hoursTab" class="tab-content active">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Click on a volunteer row to inspect details.</span>
+                        {% if tab1_as_of %}
+                            <span class="as-of-badge" title="{{ tab1_as_of }}">{{ tab1_as_of }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    {% for h in headers_t1 %}
+                                        <th>{{ h }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody id="hoursTableBody">
+                                {% for row in rows_t1 %}
+                                    <tr class="roster-row" data-name="{{ row[0] }}" onclick="selectVolunteer('{{ row[0]|escape }}')">
+                                        {% for cell in row %}
+                                            {% if loop.first %}
+                                                <td class="cell-bold">{{ cell }}</td>
+                                            {% elif headers_t1[loop.index0] == 'Total YTD' %}
+                                                <td class="cell-hours">{{ cell }}</td>
+                                            {% elif headers_t1[loop.index0] == goal_key %}
+                                                <td class="{% if cell.lower() == 'met' %}cell-met-txt{% else %}cell-pending-txt{% endif %}">{{ cell }}</td>
+                                            {% else %}
+                                                <td>{{ cell }}</td>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Requirements Table -->
+                <div id="reqTab" class="tab-content">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Shading indicators match sheets conditional formatting thresholds.</span>
+                        {% if tab2_as_of %}
+                            <span class="as-of-badge" title="{{ tab2_as_of }}">{{ tab2_as_of }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    {% for h in headers_t2 %}
+                                        <th>{{ h }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody id="reqTableBody">
+                                {% for row in rows_t2 %}
+                                    <tr class="roster-row" data-name="{{ row[0] }}" onclick="selectVolunteer('{{ row[0]|escape }}')">
+                                        {% for cell in row %}
+                                            {% if loop.first %}
+                                                <td class="cell-bold">{{ cell }}</td>
+                                            {% else %}
+                                                {% set header_name = headers_t2[loop.index0] %}
+                                                {% set status_class = 'status-na' %}
+                                                {% if cell == 'N/A' or cell == '' %}
+                                                    {% set status_class = 'status-na' %}
+                                                {% elif '%' in cell %}
+                                                    {% if '100' in cell %}
+                                                        {% set status_class = 'status-green' %}
+                                                    {% else %}
+                                                        {% set status_class = 'status-red' %}
+                                                    {% endif %}
+                                                {% else %}
+                                                    {% set thresholds = {
+                                                        'General Membership': 3,
+                                                        'Team Leaders': 3,
+                                                        'Traffic Training': 6,
+                                                        'Traffic Events Attended': 5,
+                                                        'GSAR': 8,
+                                                        'GSAR Searches': 2,
+                                                        'Aux Comm': 6,
+                                                        'EOC': 2,
+                                                        'Weather': 3,
+                                                        'Public Prep Outreach': 2
+                                                    } %}
+                                                    {% set thresh = thresholds.get(header_name, 1) %}
+                                                    {% if cell|int >= thresh %}
+                                                        {% set status_class = 'status-green' %}
+                                                    {% else %}
+                                                        {% set status_class = 'status-red' %}
+                                                    {% endif %}
+                                                {% endif %}
+                                                <td class="{{ status_class }}">{{ cell }}</td>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Details Inspector -->
+            <div class="detail-panel">
+                <div class="detail-header">
+                    <h2 class="detail-title">Volunteer Inspector</h2>
+                </div>
+                
+                <div id="inspectorEmptyState" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                    <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔍</div>
+                    <p>Click on a row in either table to inspect that volunteer's hours breakout and requirements progress cards.</p>
+                </div>
+
+                <div id="inspectorContent" style="display: none;">
+                    <h3 id="inspectMemberName" style="margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 700; color: var(--text-main);">Alvarez V26</h3>
+                    
+                    <div class="detail-label">Goal Target ({{ goal_key }})</div>
+                    <div class="detail-card" style="display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent-color);">
+                        <div id="inspectGoalVal" class="detail-value">8.75</div>
+                        <span id="inspectGoalBadge" class="badge-status">Remaining</span>
+                    </div>
+
+                    <div class="detail-label">YTD Hours Breakdown</div>
+                    <div class="detail-grid" id="inspectHoursGrid">
+                        <!-- Dynamic hours cards will go here -->
+                    </div>
+
+                    <div class="detail-label" style="margin-top: 1.5rem;">Requirements Progress</div>
+                    <div class="detail-grid" id="inspectReqGrid">
+                        <!-- Dynamic requirement cards will go here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inject serialized roster database -->
+    <script>
+        const rosterData = {{ roster_json|safe }};
+        const goalKey = "{{ goal_key }}";
+        const thresholds = {
+            'General Membership': 3,
+            'Team Leaders': 3,
+            'Traffic Training': 6,
+            'Traffic Events Attended': 5,
+            'GSAR': 8,
+            'GSAR Searches': 2,
+            'Aux Comm': 6,
+            'EOC': 2,
+            'Weather': 3,
+            'Public Prep Outreach': 2
+        };
+    </script>
+
+    <script>
+        // Tab switching logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Find clicked button based on tabId
+            const btn = tabId === 'hoursTab' ? document.querySelector('.tab-btn[onclick*="hoursTab"]') : document.querySelector('.tab-btn[onclick*="reqTab"]');
+            btn.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // Live Name Search Filter
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().strip ? this.value.toLowerCase().trim() : this.value.toLowerCase();
+            filterTable('hoursTableBody', query);
+            filterTable('reqTableBody', query);
+        });
+
+        function filterTable(tableBodyId, query) {
+            const rows = document.getElementById(tableBodyId).getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                const name = rows[i].getAttribute('data-name').toLowerCase();
+                if (name.includes(query)) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+
+        // Clear Search
+        document.getElementById('clearSearchBtn').addEventListener('click', function() {
+            searchInput.value = '';
+            filterTable('hoursTableBody', '');
+            filterTable('reqTableBody', '');
+            searchInput.focus();
+        });
+
+        // Inspector View Selection
+        let selectedMember = null;
+
+        function selectVolunteer(name) {
+            selectedMember = name;
+            
+            // Toggle selected styling in tables
+            document.querySelectorAll('.roster-row').forEach(row => {
+                if (row.getAttribute('data-name') === name) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            });
+
+            const data = rosterData[name];
+            if (!data) return;
+
+            document.getElementById('inspectorEmptyState').style.display = 'none';
+            const content = document.getElementById('inspectorContent');
+            content.style.display = 'block';
+
+            // Populate Name
+            document.getElementById('inspectMemberName').textContent = name;
+
+            // Populate Goal target card
+            const hours = data.hours || {};
+            const goalVal = hours[goalKey] || 'N/A';
+            const goalValEl = document.getElementById('inspectGoalVal');
+            const goalBadge = document.getElementById('inspectGoalBadge');
+            
+            goalValEl.textContent = goalVal;
+            
+            if (goalVal.toLowerCase() === 'met') {
+                goalValEl.style.color = '#34d399';
+                goalBadge.className = 'badge-status';
+                goalBadge.classList.add('status-green');
+                goalBadge.textContent = 'Met';
+            } else {
+                goalValEl.style.color = 'var(--text-main)';
+                goalBadge.className = 'badge-status';
+                goalBadge.classList.add('status-red');
+                goalBadge.textContent = 'Pending';
+            }
+
+            // Populate Hours Grid
+            const hoursGrid = document.getElementById('inspectHoursGrid');
+            hoursGrid.innerHTML = '';
+            
+            // Loop through all keys in hours dict except metadata
+            Object.keys(hours).forEach(key => {
+                if (key !== 'Name' && key !== 'Total YTD' && key !== goalKey && key !== '') {
+                    const h_val = hours[key] || '0';
+                    const card = document.createElement('div');
+                    card.className = 'detail-mini-card';
+                    card.innerHTML = `
+                        <div class="detail-mini-label" title="${key}">${key}</div>
+                        <div class="detail-mini-value">${h_val}<span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);"> h</span></div>
+                    `;
+                    hoursGrid.appendChild(card);
+                }
+            });
+            if (hoursGrid.innerHTML === '') {
+                hoursGrid.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; grid-column:span 2;">No hours logged.</div>';
+            }
+
+            // Populate Requirements Grid with shading classes matching thresholds
+            const reqGrid = document.getElementById('inspectReqGrid');
+            reqGrid.innerHTML = '';
+            
+            const requirements = data.requirements || {};
+            Object.keys(requirements).forEach(key => {
+                if (key !== 'Name' && key !== '') {
+                    const r_val = requirements[key] || 'N/A';
+                    
+                    // Determine class matching the threshold
+                    let colorClass = 'status-na';
+                    if (r_val === 'N/A' || r_val === '') {
+                        colorClass = 'status-na';
+                    } else if (r_val.includes('%')) {
+                        if (r_val.includes('100')) {
+                            colorClass = 'status-green';
+                        } else {
+                            colorClass = 'status-red';
+                        }
+                    } else {
+                        const thresh = thresholds[key] || 1;
+                        const valNum = parseInt(r_val, 10);
+                        if (!isNaN(valNum) && valNum >= thresh) {
+                            colorClass = 'status-green';
+                        } else {
+                            colorClass = 'status-red';
+                        }
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = `detail-mini-card ${colorClass}`;
+                    card.innerHTML = `
+                        <div class="detail-mini-label" title="${key}">${key}</div>
+                        <div class="detail-mini-value">${r_val}</div>
+                    `;
+                    reqGrid.appendChild(card);
+                }
+            });
+            if (reqGrid.innerHTML === '') {
+                reqGrid.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; grid-column:span 2;">No requirements data.</div>';
+            }
+        }
+
+        // Loading overlay controls
+        document.getElementById('btnBack').addEventListener('click', function() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        });
+
+        document.querySelectorAll('.btn-nav-outline').forEach(btn => {
+            if (btn.id !== 'clearSearchBtn') {
+                btn.addEventListener('click', function() {
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                });
+            }
+        });
+
+        window.addEventListener('pageshow', function() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

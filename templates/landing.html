@@ -262,6 +262,20 @@
             transform: translateY(-1px);
         }
 
+        .card-your-hours::before {
+            background: linear-gradient(90deg, #a855f7, #f43f5e);
+        }
+
+        .btn-your-hours {
+            background-color: #a855f7;
+            color: white;
+        }
+
+        .btn-your-hours:hover {
+            background-color: #9333ea;
+            transform: translateY(-1px);
+        }
+
         .aema-logo {
             max-height: 75px;
             width: auto;
@@ -401,6 +415,20 @@
             transform: translateY(-1px);
         }
 
+        .card-hours-admin::before {
+            background: linear-gradient(90deg, #6366f1, #06b6d4);
+        }
+
+        .btn-hours-admin {
+            background-color: #6366f1;
+            color: white;
+        }
+
+        .btn-hours-admin:hover {
+            background-color: #4f46e5;
+            transform: translateY(-1px);
+        }
+
         .section-divider {
             display: flex;
             align-items: center;
@@ -443,10 +471,16 @@
                 grid-template-columns: repeat(3, 1fr) !important;
             }
             .grid-row-2 {
-                grid-template-columns: repeat(3, 1fr) !important;
+                grid-template-columns: repeat(2, 1fr) !important;
             }
             .card-my-schedule {
                 grid-column: span 2;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .grid-row-2 {
+                grid-template-columns: repeat(4, 1fr) !important;
             }
         }
 
@@ -690,6 +724,16 @@
         </div>
 
         <div class="grid grid-row-2">
+            <div class="card card-your-hours">
+                <div>
+                    <h2 class="card-title">Your Hours</h2>
+                    <p class="card-description">
+                        View your logged volunteer hours for the year, category breakdowns, and track progress against minimum membership requirements.
+                    </p>
+                </div>
+                <a href="/your-hours" class="btn-portal btn-your-hours">View Your Hours</a>
+            </div>
+
             <div class="card card-newsletters">
                 <div>
                     <h2 class="card-title">Newsletters</h2>
@@ -791,6 +835,16 @@
                     </p>
                 </div>
                 <a href="/admin/users" class="btn-portal btn-users-admin">Manage Users</a>
+            </div>
+
+            <div class="card card-hours-admin">
+                <div>
+                    <h2 class="card-title">Hours &amp; Requirements Admin</h2>
+                    <p class="card-description">
+                        View the complete volunteer hours and minimum requirements sheets. Search volunteers, view detailed breakouts, and track progress against goals.
+                    </p>
+                </div>
+                <a href="/admin/hours" class="btn-portal btn-hours-admin">Hours Admin</a>
             </div>
 
             <div class="card card-settings-admin">

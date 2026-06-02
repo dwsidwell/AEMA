@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Hours & Requirements - Volunteer Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --accent-color: #ec4899;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            background: linear-gradient(135deg, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-tag {
+            background-color: rgba(139, 92, 246, 0.1);
+            color: #c084fc;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto 4rem auto;
+            padding: 0 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #a855f7, #f43f5e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin: 0;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-back:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+        }
+
+        /* Error/Alert Banner */
+        .alert-banner {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Top Highlights Grid */
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .highlights-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .highlight-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .highlight-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--primary-color), var(--accent-color));
+        }
+
+        .highlight-card-alt::before {
+            background: linear-gradient(180deg, var(--accent-color), #f43f5e);
+        }
+
+        .highlight-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-value-sub {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .highlight-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            margin-top: 0.5rem;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.5rem;
+            align-self: flex-start;
+        }
+
+        .badge-met {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-pending {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* Sections Grid */
+        .sections-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        .section-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .section-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        .as-of-badge {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        /* Categories Hours Grid */
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .category-card {
+            background-color: rgba(15, 23, 42, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .category-card:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            transform: translateY(-2px);
+            background-color: rgba(15, 23, 42, 0.5);
+        }
+
+        .req-card:hover {
+            border-color: rgba(236, 72, 153, 0.4);
+            transform: translateY(-2px);
+            background-color: rgba(15, 23, 42, 0.5);
+        }
+
+        .status-green {
+            background-color: rgba(16, 185, 129, 0.08) !important;
+            border-color: rgba(16, 185, 129, 0.3) !important;
+        }
+        .status-green .category-label {
+            color: #a7f3d0 !important;
+        }
+        .status-green .category-value {
+            color: #34d399 !important;
+        }
+        .status-green:hover {
+            border-color: rgba(16, 185, 129, 0.6) !important;
+            background-color: rgba(16, 185, 129, 0.12) !important;
+        }
+
+        .status-red {
+            background-color: rgba(245, 158, 11, 0.08) !important;
+            border-color: rgba(245, 158, 11, 0.3) !important;
+        }
+        .status-red .category-label {
+            color: #fde68a !important;
+        }
+        .status-red .category-value {
+            color: #fbbf24 !important;
+        }
+        .status-red:hover {
+            border-color: rgba(245, 158, 11, 0.6) !important;
+            background-color: rgba(245, 158, 11, 0.12) !important;
+        }
+
+        .status-na {
+            background-color: rgba(30, 41, 59, 0.2) !important;
+            border-color: var(--border-color) !important;
+        }
+        .status-na .category-label {
+            color: var(--text-muted) !important;
+        }
+        .status-na .category-value {
+            color: #64748b !important;
+        }
+        .status-na:hover {
+            border-color: rgba(255, 255, 255, 0.15) !important;
+            background-color: rgba(30, 41, 59, 0.3) !important;
+        }
+
+        .category-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.4rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .category-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .category-unit {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-left: 0.15rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+
+        .empty-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--border-color);
+        }
+
+        .empty-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+        }
+
+        .empty-text {
+            color: var(--text-muted);
+            max-width: 500px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Loading Screen styling */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div style="color: var(--text-main); font-size: 1.1rem; font-weight: 500; letter-spacing: 0.05em;">Syncing Spreadsheet Data...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <div class="navbar-user">
+            <span class="user-tag">{{ session.get('last_name') }} ({{ session.get('victor_number') }})</span>
+            <a href="/profile" class="btn-nav-outline">Profile</a>
+            <a href="/" class="btn-nav-outline">Home</a>
+            <a href="/logout" class="btn-nav-outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <div style="flex: 1; min-width: 280px;">
+                <h1>Your Hours & Requirements</h1>
+                <p class="subtitle">Personal hours tracking and requirement milestones synced from the training roster.</p>
+            </div>
+            <a href="/" class="btn-back" id="btnBack">&larr; Back to Portal</a>
+        </header>
+
+        {% if error %}
+        <div class="alert-banner">
+            <strong>Spreadsheet Sync Notice:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        {% if tab1 or tab2 %}
+            <!-- Top Highlights Grid -->
+            <div class="highlights-grid">
+                <!-- Highlight 1: YTD Total -->
+                <div class="highlight-card">
+                    <div>
+                        <div class="highlight-label">Year-to-Date Hours</div>
+                        {% if tab1 and tab1.get('Total YTD') %}
+                            <div class="highlight-value">{{ tab1.get('Total YTD') }}<span class="highlight-value-sub"> hrs</span></div>
+                        {% else %}
+                            <div class="highlight-value">-</div>
+                        {% endif %}
+                    </div>
+                    <div class="highlight-desc">Cumulative volunteer service, meeting, and training hours logged in 2026.</div>
+                    {% if tab1_as_of %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 0.85rem; height: 0.85rem; color: var(--success-color);">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            <span>{{ tab1_as_of }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Highlight 2: Goal Status -->
+                <div class="highlight-card highlight-card-alt">
+                    <div>
+                        <div class="highlight-label">{{ goal_key }}</div>
+                        {% if tab1 and tab1.get(goal_key) %}
+                            {% set goal_val = tab1.get(goal_key) %}
+                            {% if goal_val.lower() == 'met' %}
+                                <div class="highlight-value" style="color: #34d399; font-size: 2.5rem; text-transform: uppercase;">Goal Met!</div>
+                                <div class="badge-status badge-met">Met Target</div>
+                            {% else %}
+                                <div class="highlight-value">{{ goal_val }}<span class="highlight-value-sub"> hrs</span></div>
+                                <div class="badge-status badge-pending">Remaining</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="highlight-value">-</div>
+                        {% endif %}
+                    </div>
+                    <div class="highlight-desc">Remaining hours required to achieve the current quarterly goal.</div>
+                </div>
+            </div>
+
+            <!-- Stacking Layout -->
+            <div class="sections-grid">
+                <!-- Section 1: Hours Breakdown by Category (Tab 1) -->
+                <div class="section-card">
+                    <div>
+                        <div class="section-header">
+                            <h2 class="section-title">Hours by Activity Type</h2>
+                            {% if tab1_as_of %}
+                                <span class="as-of-badge" title="{{ tab1_as_of }}">{{ tab1_as_of }}</span>
+                            {% endif %}
+                        </div>
+
+                        {% if tab1 %}
+                            <div class="categories-grid">
+                                {% for key, val in tab1.items() %}
+                                    {# Exclude non-category fields #}
+                                    {% if key not in ['Name', 'Total YTD', goal_key] and val and key != '' %}
+                                        <div class="category-card">
+                                            <div class="category-label" title="{{ key }}">{{ key }}</div>
+                                            <div class="category-value">{{ val }}<span class="category-unit">h</span></div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">Hours breakdown data is currently unavailable.</p>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border-color);">
+                        Activity descriptions and logged entries are managed in the main hours sheet.
+                    </div>
+                </div>
+
+                <!-- Section 2: Minimum Requirements (Tab 2) -->
+                <div class="section-card">
+                    <div>
+                        <div class="section-header">
+                            <h2 class="section-title">Minimum Requirements</h2>
+                            {% if tab2_as_of %}
+                                <span class="as-of-badge" title="{{ tab2_as_of }}">{{ tab2_as_of }}</span>
+                            {% endif %}
+                        </div>
+
+                        {% if tab2 %}
+                            <div class="categories-grid">
+                                {% for key, val in tab2.items() %}
+                                    {% if key != 'Name' and key != '' %}
+                                        {% set status_class = 'status-na' %}
+                                        {% if val == 'N/A' or val == '' %}
+                                            {% set status_class = 'status-na' %}
+                                        {% elif '%' in val %}
+                                            {% if '100' in val %}
+                                                {% set status_class = 'status-green' %}
+                                            {% else %}
+                                                {% set status_class = 'status-red' %}
+                                            {% endif %}
+                                        {% else %}
+                                            {% set thresholds = {
+                                                'General Membership': 3,
+                                                'Team Leaders': 3,
+                                                'Traffic Training': 6,
+                                                'Traffic Events Attended': 5,
+                                                'GSAR': 8,
+                                                'GSAR Searches': 2,
+                                                'Aux Comm': 6,
+                                                'EOC': 2,
+                                                'Weather': 3,
+                                                'Public Prep Outreach': 2
+                                            } %}
+                                            {% set thresh = thresholds.get(key, 1) %}
+                                            {% if val|int >= thresh %}
+                                                {% set status_class = 'status-green' %}
+                                            {% else %}
+                                                {% set status_class = 'status-red' %}
+                                            {% endif %}
+                                        {% endif %}
+                                        <div class="category-card req-card {{ status_class }}">
+                                            <div class="category-label" title="{{ key }}">{{ key }}</div>
+                                            <div class="category-value">{{ val }}</div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">Requirements status data is currently unavailable.</p>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border-color);">
+                        General membership and team roles require verification of logged events.
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- Empty State / Not Found -->
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <h2 class="empty-title">Roster Record Not Found</h2>
+                <p class="empty-text">
+                    We could not find an hours tracking record matching the account for <strong>{{ session.get('last_name') }} ({{ session.get('victor_number') }})</strong>.
+                </p>
+                <p class="empty-text" style="margin-top: 1rem; font-size: 0.9rem;">
+                    Please contact your system administrator to ensure your **Victor Number** is mapped correctly in both the portal settings and the hours spreadsheets.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Loading screens for button clicks
+        document.getElementById('btnBack').addEventListener('click', function() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        });
+
+        document.querySelectorAll('.btn-nav-outline').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+            });
+        });
+
+        window.addEventListener('pageshow', function() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
