@@ -29,3 +29,5 @@ services:
         sync: false
       - key: EMAIL_SENDER
         sync: false
+      - key: YOUR_HOURS_SHEET_URL
+        sync: false
