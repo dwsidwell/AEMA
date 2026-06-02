@@ -1171,6 +1171,347 @@ def gsar_lead_export_raw():
         logger.error(f"Error fetching raw export: {e}")
         return f"Error fetching raw export: {str(e)}", 500
 
+def clean_vn(vn):
+    if not vn:
+        return ""
+    return vn.strip().upper().lstrip('V')
+
+def find_matching_row(rows, last_name, victor_number):
+    clean_user_vn = clean_vn(victor_number)
+    
+    # Helper to clean row name tokens
+    def get_row_vn(row_name):
+        tokens = re.split(r'[\s_\-]+', row_name.strip())
+        for t in tokens:
+            t_clean = t.upper().lstrip('V')
+            if t_clean.isdigit():
+                return t_clean
+        return None
+
+    # Step 1: Try strict match on both last name and victor number
+    for row in rows:
+        if not row or not row[0]:
+            continue
+        row_name = row[0].strip()
+        row_vn = get_row_vn(row_name)
+        if last_name.lower() in row_name.lower() and row_vn == clean_user_vn:
+            return row
+            
+    # Step 2: Fallback to matching by victor number alone (since victor number is unique)
+    for row in rows:
+        if not row or not row[0]:
+            continue
+        row_name = row[0].strip()
+        row_vn = get_row_vn(row_name)
+        if row_vn and row_vn == clean_user_vn:
+            return row
+            
+    # Step 3: Fallback to matching by last name alone
+    for row in rows:
+        if not row or not row[0]:
+            continue
+        row_name = row[0].strip()
+        if last_name.lower() in row_name.lower():
+            return row
+            
+    return None
+
+def fetch_your_hours_data(last_name, victor_number):
+    sheet_url_base = os.environ.get('YOUR_HOURS_SHEET_URL')
+    if not sheet_url_base:
+        sheet_url_base = "https://docs.google.com/spreadsheets/d/1Nf3oZNu_XNrH0HgVC98bMq-ZpjEK-nqKE67DytBjNh8/edit?usp=sharing"
+        
+    if 'export?format=csv' not in sheet_url_base:
+        if '/edit' in sheet_url_base:
+            sheet_url_base = sheet_url_base.split('/edit')[0] + '/export?format=csv'
+        else:
+            sheet_url_base = sheet_url_base.rstrip('/') + '/export?format=csv'
+            
+    url_tab1 = f"{sheet_url_base}&gid=0"
+    url_tab2 = f"{sheet_url_base}&gid=822013751"
+    
+    tab1_data = None
+    tab2_data = None
+    tab1_as_of = None
+    tab2_as_of = None
+    error_msg = None
+    
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    
+    # Helper to parse a tab
+    def get_rows_and_as_of(url):
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code != 200:
+            raise Exception(f"HTTP {r.status_code}")
+            
+        csv_file = StringIO(r.text)
+        reader = csv.reader(csv_file)
+        header_row = next(reader, None)
+        if not header_row:
+            return [], None, None
+            
+        header_row = [h.strip() for h in header_row]
+        
+        data_rows = []
+        as_of_date = None
+        
+        for row in reader:
+            if not row or len(row) == 0:
+                continue
+            first_cell = row[0].strip()
+            
+            # Check for as-of date
+            if "last updated" in first_cell.lower() or "as of" in first_cell.lower():
+                as_of_date = first_cell
+                continue
+                
+            # Check other cells for as-of date
+            for cell in row:
+                if cell and ("last updated" in cell.lower() or "as of" in cell.lower()):
+                    as_of_date = cell.strip()
+                    break
+                    
+            data_rows.append([cell.strip() for cell in row])
+            
+        return data_rows, header_row, as_of_date
+
+    # Fetch and parse Tab 1
+    try:
+        rows_t1, headers_t1, as_of_t1 = get_rows_and_as_of(url_tab1)
+        tab1_as_of = as_of_t1
+        matched = find_matching_row(rows_t1, last_name, victor_number)
+        if matched:
+            tab1_data = dict(zip(headers_t1, matched))
+    except Exception as e:
+        logger.error(f"Error fetching/parsing Tab 1: {e}")
+        error_msg = f"Failed to retrieve Hours data: {str(e)}"
+        
+    # Fetch and parse Tab 2
+    try:
+        rows_t2, headers_t2, as_of_t2 = get_rows_and_as_of(url_tab2)
+        tab2_as_of = as_of_t2
+        if headers_t2 and headers_t2[0] == '':
+            headers_t2[0] = 'Name'
+        matched = find_matching_row(rows_t2, last_name, victor_number)
+        if matched:
+            tab2_data = dict(zip(headers_t2, matched))
+    except Exception as e:
+        logger.error(f"Error fetching/parsing Tab 2: {e}")
+        if not error_msg:
+            error_msg = f"Failed to retrieve Requirements data: {str(e)}"
+            
+    return {
+        'tab1': tab1_data,
+        'tab2': tab2_data,
+        'tab1_as_of': tab1_as_of,
+        'tab2_as_of': tab2_as_of,
+        'error': error_msg
+    }
+
+@app.route('/your-hours')
+def your_hours():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    victor_number = session.get('victor_number', '')
+    
+    # Parse the data
+    data = fetch_your_hours_data(last_name, victor_number)
+    
+    # Dynamic Goal column extraction
+    goal_key = 'Hours to Goal'
+    if data['tab1']:
+        goal_key = next((k for k in data['tab1'].keys() if 'goal' in k.lower()), 'Hours to Goal')
+        
+    return render_template(
+        'your_hours.html',
+        tab1=data['tab1'],
+        tab2=data['tab2'],
+        tab1_as_of=data['tab1_as_of'],
+        tab2_as_of=data['tab2_as_of'],
+        goal_key=goal_key,
+        error=data['error'],
+        user_name=f"{last_name}, {victor_number}"
+    )
+
+def extract_vn_from_name(name):
+    if not name:
+        return None
+    tokens = re.split(r'[\s_\-]+', name.strip())
+    for t in tokens:
+        t_clean = t.upper().lstrip('V')
+        if t_clean.isdigit():
+            return t_clean
+    return None
+
+def fetch_all_roster_data():
+    sheet_url_base = os.environ.get('YOUR_HOURS_SHEET_URL')
+    if not sheet_url_base:
+        sheet_url_base = "https://docs.google.com/spreadsheets/d/1Nf3oZNu_XNrH0HgVC98bMq-ZpjEK-nqKE67DytBjNh8/edit?usp=sharing"
+        
+    if 'export?format=csv' not in sheet_url_base:
+        if '/edit' in sheet_url_base:
+            sheet_url_base = sheet_url_base.split('/edit')[0] + '/export?format=csv'
+        else:
+            sheet_url_base = sheet_url_base.rstrip('/') + '/export?format=csv'
+            
+    url_tab1 = f"{sheet_url_base}&gid=0"
+    url_tab2 = f"{sheet_url_base}&gid=822013751"
+    
+    rows_t1 = []
+    headers_t1 = []
+    tab1_as_of = None
+    
+    rows_t2 = []
+    headers_t2 = []
+    tab2_as_of = None
+    
+    error_msg = None
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    
+    def parse_tab(url, is_tab2=False):
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code != 200:
+            raise Exception(f"HTTP {r.status_code}")
+            
+        csv_file = StringIO(r.text)
+        reader = csv.reader(csv_file)
+        header_row = next(reader, None)
+        if not header_row:
+            return [], [], None
+            
+        header_row = [h.strip() for h in header_row]
+        if is_tab2 and header_row[0] == '':
+            header_row[0] = 'Name'
+            
+        data_rows = []
+        as_of_date = None
+        
+        for row in reader:
+            if not row or len(row) == 0:
+                continue
+            first_cell = row[0].strip()
+            
+            # Check for as-of date
+            if "last updated" in first_cell.lower() or "as of" in first_cell.lower():
+                as_of_date = first_cell
+                continue
+                
+            # Check other cells for as-of date
+            for cell in row:
+                if cell and ("last updated" in cell.lower() or "as of" in cell.lower()):
+                    as_of_date = cell.strip()
+                    break
+            
+            # Skip totals and percentage rows in Tab 1
+            if not is_tab2 and (first_cell.lower() == 'total hours' or first_cell == '' or '%' in first_cell):
+                continue
+                
+            # Clean values
+            cleaned_row = [cell.strip() for cell in row]
+            
+            # Pad row if it has fewer cells than headers
+            if len(cleaned_row) < len(header_row):
+                cleaned_row += [''] * (len(header_row) - len(cleaned_row))
+                
+            # Skip if name is empty
+            if not cleaned_row[0]:
+                continue
+                
+            data_rows.append(cleaned_row)
+            
+        return data_rows, header_row, as_of_date
+
+    try:
+        rows_t1, headers_t1, tab1_as_of = parse_tab(url_tab1, is_tab2=False)
+    except Exception as e:
+        logger.error(f"Error fetching all roster data Tab 1: {e}")
+        error_msg = f"Failed to fetch roster hours: {str(e)}"
+        
+    try:
+        rows_t2, headers_t2, tab2_as_of = parse_tab(url_tab2, is_tab2=True)
+    except Exception as e:
+        logger.error(f"Error fetching all roster data Tab 2: {e}")
+        if not error_msg:
+            error_msg = f"Failed to fetch roster requirements: {str(e)}"
+            
+    return {
+        'rows_t1': rows_t1,
+        'headers_t1': headers_t1,
+        'tab1_as_of': tab1_as_of,
+        'rows_t2': rows_t2,
+        'headers_t2': headers_t2,
+        'tab2_as_of': tab2_as_of,
+        'error': error_msg
+    }
+
+@app.route('/admin/hours')
+def admin_hours():
+    if session.get('must_change_password'):
+        return redirect(url_for('change_password'))
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
+        
+    last_name = session.get('last_name', '')
+    is_admin = session.get('is_admin', False)
+    if not is_admin:
+        logger.warning(f"Unauthorized hours admin access attempt by {last_name}")
+        return redirect(url_for('index'))
+        
+    # Fetch all data
+    data = fetch_all_roster_data()
+    
+    # Extract goal column header
+    goal_key = 'Hours to Goal'
+    if data['headers_t1']:
+        goal_key = next((k for k in data['headers_t1'] if 'goal' in k.lower()), 'Hours to Goal')
+        
+    # Convert list of rows to a dictionary keyed by Name for JS usage
+    roster_dict = {}
+    for r in data['rows_t1']:
+        name = r[0]
+        roster_dict[name] = {
+            'hours': dict(zip(data['headers_t1'], r)),
+            'requirements': {}
+        }
+        
+    for r in data['rows_t2']:
+        name = r[0]
+        # Match to hours or create new
+        matched_key = None
+        for k in roster_dict.keys():
+            k_vn = extract_vn_from_name(k)
+            r_vn = extract_vn_from_name(name)
+            if k_vn == r_vn and r_vn:
+                matched_key = k
+                break
+        if matched_key:
+            roster_dict[matched_key]['requirements'] = dict(zip(data['headers_t2'], r))
+        else:
+            roster_dict[name] = {
+                'hours': {},
+                'requirements': dict(zip(data['headers_t2'], r))
+            }
+            
+    roster_json = json.dumps(roster_dict)
+    
+    return render_template(
+        'admin_hours.html',
+        headers_t1=data['headers_t1'],
+        rows_t1=data['rows_t1'],
+        tab1_as_of=data['tab1_as_of'],
+        headers_t2=data['headers_t2'],
+        rows_t2=data['rows_t2'],
+        tab2_as_of=data['tab2_as_of'],
+        goal_key=goal_key,
+        roster_json=roster_json,
+        error=data['error'],
+        user_name=f"{last_name}, {session.get('victor_number')}"
+    )
+
 def login_to_iar(agency, username, password, urls_called=None):
     if urls_called is None:
         urls_called = []
