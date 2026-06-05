@@ -220,6 +220,29 @@ def save_event_documents(docs):
         logger.error(f"Error saving event documents file: {e}")
         return False
 
+# Event Links Configuration & Helpers
+EVENT_LINKS_FILE = os.path.join(DATA_DIR, 'event_links.json')
+
+def load_event_links():
+    if not os.path.exists(EVENT_LINKS_FILE):
+        return {}
+    try:
+        with open(EVENT_LINKS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading event links file: {e}")
+        return {}
+
+def save_event_links(links):
+    try:
+        os.makedirs(os.path.dirname(EVENT_LINKS_FILE), exist_ok=True)
+        with open(EVENT_LINKS_FILE, 'w') as f:
+            json.dump(links, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving event links file: {e}")
+        return False
+
 def check_user_is_attending(user, attendee_list):
     if not user:
         return False
@@ -1601,6 +1624,7 @@ def get_events():
         
         # Load event documents registry and user details for permission checking
         event_docs = load_event_documents()
+        event_links = load_event_links()
         users = load_users()
         current_user = users.get(session.get('user_key'))
         last_name = session.get('last_name', '')
@@ -1657,8 +1681,10 @@ def get_events():
                     if is_attending:
                         attending_ids.append(str(event_id))
                     allowed_docs = []
+                    allowed_links = []
                     if is_admin_view or is_attending:
                         allowed_docs = event_docs.get(str(event_id), [])
+                        allowed_links = event_links.get(str(event_id), [])
                     
                     detailed_events.append({
                         'id': event_id,
@@ -1668,6 +1694,7 @@ def get_events():
                         'description': description,
                         'attendees': attending,
                         'documents': allowed_docs,
+                        'links': allowed_links,
                         'user_response': user_response,
                         'recurrence_date': central_start_str
                     })
@@ -1823,11 +1850,14 @@ def respond_to_event():
             
             # Check documents permission
             event_docs = load_event_documents()
+            event_links = load_event_links()
             is_attending = check_user_is_attending(user, all_attendees)
             is_admin = session.get('is_admin', False)
             allowed_docs = []
+            allowed_links = []
             if is_admin or is_attending:
                 allowed_docs = event_docs.get(str(event_id), [])
+                allowed_links = event_links.get(str(event_id), [])
                 
             # If the user is attending, ensure this event ID is in their session list
             attending_event_ids = session.get('attending_event_ids', [])
@@ -1850,6 +1880,7 @@ def respond_to_event():
                 'description': description,
                 'attendees': attending,
                 'documents': allowed_docs,
+                'links': allowed_links,
                 'user_response': user_response,
                 'recurrence_date': recurrence_date
             }
@@ -2064,6 +2095,81 @@ def delete_document():
         save_event_documents(event_docs)
         
     logger.info(f"Admin {last_name} deleted file {filename} for event {event_id}", extra={"tags": {"event_type": "app_telemetry", "action": "document_deleted"}})
+    return jsonify({'success': True})
+
+@app.route('/admin/add-link', methods=['POST'])
+def add_link():
+    if not session.get('authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    last_name = session.get('last_name', '')
+    is_admin = session.get('is_admin', False)
+    if not is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    data = request.json or {}
+    event_id = data.get('event_id')
+    description = data.get('description', '').strip()
+    url = data.get('url', '').strip()
+    
+    if not event_id or not description or not url:
+        return jsonify({'error': 'Missing parameters'}), 400
+        
+    # Ensure protocol is present
+    if not re.match(r'^https?://', url, re.IGNORECASE):
+        url = 'http://' + url
+        
+    event_links = load_event_links()
+    event_id_str = str(event_id)
+    if event_id_str not in event_links:
+        event_links[event_id_str] = []
+        
+    # Remove any existing link with the exact same URL for this event to avoid duplicates
+    event_links[event_id_str] = [l for l in event_links[event_id_str] if l['url'].lower() != url.lower()]
+    
+    chicago_tz = ZoneInfo("America/Chicago")
+    uploaded_at = datetime.datetime.now(chicago_tz).strftime('%Y-%m-%d %H:%M:%S')
+    
+    new_link = {
+        'description': description,
+        'url': url,
+        'uploaded_by': last_name,
+        'uploaded_at': uploaded_at
+    }
+    event_links[event_id_str].append(new_link)
+    
+    save_event_links(event_links)
+    logger.info(f"Admin {last_name} added link '{description}' for event {event_id}", extra={"tags": {"event_type": "app_telemetry", "action": "link_added"}})
+    return jsonify({'success': True, 'link': new_link})
+
+@app.route('/admin/delete-link', methods=['POST'])
+def delete_link():
+    if not session.get('authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    last_name = session.get('last_name', '')
+    is_admin = session.get('is_admin', False)
+    if not is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    data = request.json or {}
+    event_id = data.get('event_id')
+    url = data.get('url', '').strip()
+    
+    if not event_id or not url:
+        return jsonify({'error': 'Missing parameters'}), 400
+        
+    event_id_str = str(event_id)
+    
+    event_links = load_event_links()
+    if event_id_str in event_links:
+        # Filter out the link with the matching URL
+        event_links[event_id_str] = [l for l in event_links[event_id_str] if l['url'].lower() != url.lower()]
+        if not event_links[event_id_str]:
+            del event_links[event_id_str]
+        save_event_links(event_links)
+        
+    logger.info(f"Admin {last_name} deleted link with URL {url} for event {event_id}", extra={"tags": {"event_type": "app_telemetry", "action": "link_deleted"}})
     return jsonify({'success': True})
 
 @app.route('/api/event-document/<event_id>/<filename>')
