@@ -724,16 +724,6 @@
         </div>
 
         <div class="grid grid-row-2">
-            <div class="card card-your-hours">
-                <div>
-                    <h2 class="card-title">Your Hours</h2>
-                    <p class="card-description">
-                        View your logged volunteer hours for the year, category breakdowns, and track progress against minimum membership requirements.
-                    </p>
-                </div>
-                <a href="/your-hours" class="btn-portal btn-your-hours">View Your Hours</a>
-            </div>
-
             <div class="card card-newsletters">
                 <div>
                     <h2 class="card-title">Newsletters</h2>
@@ -786,6 +776,16 @@
                         </li>
                     </ul>
                 </div>
+            </div>
+
+            <div class="card card-your-hours">
+                <div>
+                    <h2 class="card-title">Your Hours</h2>
+                    <p class="card-description">
+                        View your logged volunteer hours for the year, category breakdowns, and track progress against minimum membership requirements.
+                    </p>
+                </div>
+                <a href="/your-hours" class="btn-portal btn-your-hours">View Your Hours</a>
             </div>
 
             <div class="card card-gsar">
@@ -945,20 +945,41 @@
                         : '<span class="badge badge-not-signed-up">Not Signed Up</span>';
 
                     let docsHtml = '';
-                    if (isSignedUp && event.documents && event.documents.length > 0) {
+                    if (isSignedUp && ((event.documents && event.documents.length > 0) || (event.links && event.links.length > 0))) {
                         docsHtml = `<div class="upcoming-event-docs">`;
-                        event.documents.forEach(doc => {
-                            const fileUrl = `/api/event-document/${event.id}/${encodeURIComponent(doc.filename)}`;
-                            docsHtml += `
-                                <div class="doc-pill">
-                                    <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="doc-link" title="${doc.filename} (${doc.file_size})">
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #22d3ee; flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                        <span>${doc.filename}</span>
-                                        <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal; margin-left: 2px;">(${doc.file_size})</span>
-                                    </a>
-                                </div>
-                            `;
-                        });
+                        
+                        // Documents
+                        if (event.documents && event.documents.length > 0) {
+                            event.documents.forEach(doc => {
+                                const fileUrl = `/api/event-document/${event.id}/${encodeURIComponent(doc.filename)}`;
+                                docsHtml += `
+                                    <div class="doc-pill">
+                                        <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="doc-link" title="${doc.filename} (${doc.file_size})">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #22d3ee; flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                            <span>${doc.filename}</span>
+                                            <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal; margin-left: 2px;">(${doc.file_size})</span>
+                                        </a>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        // Links
+                        if (event.links && event.links.length > 0) {
+                            event.links.forEach(link => {
+                                const uploadedByStr = link.uploaded_by ? ` by ${link.uploaded_by}` : '';
+                                const uploadedAtStr = link.uploaded_at ? ` on ${link.uploaded_at}` : '';
+                                docsHtml += `
+                                    <div class="doc-pill" style="background-color: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.2);">
+                                        <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="doc-link" style="color: #c084fc;" title="${link.url}${uploadedByStr}${uploadedAtStr}">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc; flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                                            <span>${link.description}</span>
+                                        </a>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
                         docsHtml += `</div>`;
                     }
 

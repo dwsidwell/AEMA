@@ -969,6 +969,52 @@ END:VCALENDAR`;
                 
                 tdSubject.appendChild(docsContainer);
             }
+
+            // Render link pills
+            if (event.links && event.links.length > 0) {
+                const linksContainer = document.createElement('div');
+                linksContainer.className = 'event-links-container';
+                linksContainer.style.marginTop = '0.75rem';
+                linksContainer.style.display = 'flex';
+                linksContainer.style.flexWrap = 'wrap';
+                linksContainer.style.gap = '0.5rem';
+                
+                event.links.forEach(link => {
+                    const linkPill = document.createElement('div');
+                    linkPill.style.display = 'inline-flex';
+                    linkPill.style.alignItems = 'center';
+                    linkPill.style.gap = '0.35rem';
+                    linkPill.style.backgroundColor = 'rgba(167, 139, 250, 0.08)';
+                    linkPill.style.border = '1px solid rgba(167, 139, 250, 0.2)';
+                    linkPill.style.borderRadius = '6px';
+                    linkPill.style.padding = '0.25rem 0.5rem';
+                    linkPill.style.fontSize = '0.8rem';
+                    
+                    const linkLink = document.createElement('a');
+                    linkLink.href = link.url;
+                    linkLink.target = '_blank';
+                    linkLink.rel = 'noopener noreferrer';
+                    linkLink.style.color = '#c084fc';
+                    linkLink.style.textDecoration = 'none';
+                    linkLink.style.fontWeight = '500';
+                    linkLink.style.display = 'inline-flex';
+                    linkLink.style.alignItems = 'center';
+                    linkLink.style.gap = '0.25rem';
+                    linkLink.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc; flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${link.description}</span>
+                    `;
+                    linkPill.appendChild(linkLink);
+                    
+                    const uploadedByStr = link.uploaded_by ? ` by ${link.uploaded_by}` : '';
+                    const uploadedAtStr = link.uploaded_at ? ` on ${link.uploaded_at}` : '';
+                    linkPill.title = `${link.url}${uploadedByStr}${uploadedAtStr}`;
+                    
+                    linksContainer.appendChild(linkPill);
+                });
+                
+                tdSubject.appendChild(linksContainer);
+            }
             tr.appendChild(tdSubject);
 
             // Attendees

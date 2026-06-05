@@ -961,6 +961,75 @@ END:VCALENDAR`;
                     tdSubject.appendChild(docsContainer);
                 }
 
+                // Render link pills
+                if (event.links && event.links.length > 0) {
+                    const linksContainer = document.createElement('div');
+                    linksContainer.className = 'event-links-container';
+                    linksContainer.style.marginTop = '0.75rem';
+                    linksContainer.style.display = 'flex';
+                    linksContainer.style.flexWrap = 'wrap';
+                    linksContainer.style.gap = '0.5rem';
+                    
+                    event.links.forEach(link => {
+                        const linkPill = document.createElement('div');
+                        linkPill.style.display = 'inline-flex';
+                        linkPill.style.alignItems = 'center';
+                        linkPill.style.gap = '0.35rem';
+                        linkPill.style.backgroundColor = 'rgba(167, 139, 250, 0.08)';
+                        linkPill.style.border = '1px solid rgba(167, 139, 250, 0.2)';
+                        linkPill.style.borderRadius = '6px';
+                        linkPill.style.padding = '0.25rem 0.5rem';
+                        linkPill.style.fontSize = '0.8rem';
+                        
+                        const linkLink = document.createElement('a');
+                        linkLink.href = link.url;
+                        linkLink.target = '_blank';
+                        linkLink.rel = 'noopener noreferrer';
+                        linkLink.style.color = '#c084fc';
+                        linkLink.style.textDecoration = 'none';
+                        linkLink.style.fontWeight = '500';
+                        linkLink.style.display = 'inline-flex';
+                        linkLink.style.alignItems = 'center';
+                        linkLink.style.gap = '0.25rem';
+                        linkLink.innerHTML = `
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc; flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${link.description}</span>
+                        `;
+                        linkPill.appendChild(linkLink);
+                        
+                        if (isAdmin) {
+                            const delBtn = document.createElement('button');
+                            delBtn.style.background = 'none';
+                            delBtn.style.border = 'none';
+                            delBtn.style.color = 'var(--error-color)';
+                            delBtn.style.cursor = 'pointer';
+                            delBtn.style.padding = '0';
+                            delBtn.style.display = 'inline-flex';
+                            delBtn.style.alignItems = 'center';
+                            delBtn.style.marginLeft = '4px';
+                            delBtn.title = 'Delete Link';
+                            delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--error-color);"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
+                            
+                            delBtn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete the link "${link.description}"?`)) {
+                                    deleteLink(event.id, link.url, linkPill);
+                                }
+                            });
+                            linkPill.appendChild(delBtn);
+                        }
+                        
+                        const uploadedByStr = link.uploaded_by ? ` by ${link.uploaded_by}` : '';
+                        const uploadedAtStr = link.uploaded_at ? ` on ${link.uploaded_at}` : '';
+                        linkPill.title = `${link.url}${uploadedByStr}${uploadedAtStr}`;
+                        
+                        linksContainer.appendChild(linkPill);
+                    });
+                    
+                    tdSubject.appendChild(linksContainer);
+                }
+
                 // Render admin tools
                 if (isAdmin) {
                     const adminTools = document.createElement('div');
@@ -984,6 +1053,24 @@ END:VCALENDAR`;
                         openUploadModal(event.id, event.subject);
                     });
                     adminTools.appendChild(uploadBtn);
+                    
+                    const addLinkBtn = document.createElement('button');
+                    addLinkBtn.className = 'btn-secondary';
+                    addLinkBtn.style.padding = '0.25rem 0.5rem';
+                    addLinkBtn.style.fontSize = '0.75rem';
+                    addLinkBtn.style.display = 'inline-flex';
+                    addLinkBtn.style.alignItems = 'center';
+                    addLinkBtn.style.gap = '4px';
+                    addLinkBtn.style.width = 'fit-content';
+                    addLinkBtn.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-color);"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        <span>Add Link</span>
+                    `;
+                    addLinkBtn.addEventListener('click', () => {
+                        openAddLinkModal(event.id, event.subject);
+                    });
+                    adminTools.appendChild(addLinkBtn);
+                    
                     tdSubject.appendChild(adminTools);
                 }
 
@@ -1058,9 +1145,11 @@ END:VCALENDAR`;
             }
         }
 
-        // --- Document Administration Javascript (Admins Only) ---
+        // --- Document and Link Administration Javascript (Admins Only) ---
         let openUploadModal = null;
         let deleteDocument = null;
+        let openAddLinkModal = null;
+        let deleteLink = null;
 
         if (isAdmin) {
             const uploadModal = document.getElementById('uploadModal');
@@ -1075,6 +1164,17 @@ END:VCALENDAR`;
             const uploadStatus = document.getElementById('uploadStatus');
             const uploadSubmitBtn = document.getElementById('uploadSubmitBtn');
 
+            // Add Link Modal elements
+            const addLinkModal = document.getElementById('addLinkModal');
+            const closeLinkModalBtn = document.getElementById('closeLinkModalBtn');
+            const linkForm = document.getElementById('linkForm');
+            const linkEventId = document.getElementById('linkEventId');
+            const modalEventSubjectLink = document.getElementById('modalEventSubjectLink');
+            const linkDescription = document.getElementById('linkDescription');
+            const linkUrl = document.getElementById('linkUrl');
+            const linkStatus = document.getElementById('linkStatus');
+            const linkSubmitBtn = document.getElementById('linkSubmitBtn');
+
             openUploadModal = function(eventId, eventSubject) {
                 uploadEventId.value = eventId;
                 modalEventSubject.textContent = eventSubject;
@@ -1087,6 +1187,16 @@ END:VCALENDAR`;
                 uploadModal.style.display = 'flex';
             }
 
+            openAddLinkModal = function(eventId, eventSubject) {
+                linkEventId.value = eventId;
+                modalEventSubjectLink.textContent = eventSubject;
+                linkDescription.value = '';
+                linkUrl.value = '';
+                linkStatus.style.display = 'none';
+                linkSubmitBtn.disabled = false;
+                addLinkModal.style.display = 'flex';
+            }
+
             closeModalBtn.addEventListener('click', () => {
                 uploadModal.style.display = 'none';
             });
@@ -1094,6 +1204,16 @@ END:VCALENDAR`;
             uploadModal.addEventListener('click', (e) => {
                 if (e.target === uploadModal) {
                     uploadModal.style.display = 'none';
+                }
+            });
+
+            closeLinkModalBtn.addEventListener('click', () => {
+                addLinkModal.style.display = 'none';
+            });
+
+            addLinkModal.addEventListener('click', (e) => {
+                if (e.target === addLinkModal) {
+                    addLinkModal.style.display = 'none';
                 }
             });
 
@@ -1118,6 +1238,30 @@ END:VCALENDAR`;
                 } catch (err) {
                     console.error(err);
                     alert('An error occurred while deleting the document.');
+                }
+            }
+
+            deleteLink = async function(eventId, url, pillElement) {
+                try {
+                    const response = await fetch('/admin/delete-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ event_id: eventId, url: url })
+                    });
+                    
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        pillElement.remove();
+                        const event = lastFetchedEvents.find(e => e.id == eventId);
+                        if (event && event.links) {
+                            event.links = event.links.filter(l => l.url !== url);
+                        }
+                    } else {
+                        alert(data.error || 'Failed to delete link');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('An error occurred while deleting the link.');
                 }
             }
 
@@ -1204,6 +1348,63 @@ END:VCALENDAR`;
                 uploadStatus.style.display = 'block';
                 uploadSubmitBtn.disabled = false;
             }
+
+            linkForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const desc = linkDescription.value.trim();
+                const url = linkUrl.value.trim();
+                if (!desc || !url) return;
+
+                linkStatus.style.display = 'none';
+                linkSubmitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/admin/add-link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            event_id: linkEventId.value,
+                            description: desc,
+                            url: url
+                        })
+                    });
+
+                    const res = await response.json();
+                    if (response.ok && res.success) {
+                        linkStatus.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                        linkStatus.style.color = 'var(--success-color)';
+                        linkStatus.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+                        linkStatus.textContent = 'Link added successfully!';
+                        linkStatus.style.display = 'block';
+
+                        const eventId = linkEventId.value;
+                        const eventObj = lastFetchedEvents.find(ev => ev.id == eventId);
+                        if (eventObj) {
+                            if (!eventObj.links) eventObj.links = [];
+                            eventObj.links = eventObj.links.filter(l => l.url.toLowerCase() !== res.link.url.toLowerCase());
+                            eventObj.links.push(res.link);
+                        }
+
+                        setTimeout(() => {
+                            addLinkModal.style.display = 'none';
+                            renderTable(lastFetchedEvents);
+                        }, 1000);
+                    } else {
+                        showLinkError(res.error || 'Add link failed');
+                    }
+                } catch (err) {
+                    showLinkError('Network error during add link.');
+                }
+            });
+
+            function showLinkError(msg) {
+                linkStatus.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                linkStatus.style.color = 'var(--error-color)';
+                linkStatus.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                linkStatus.textContent = msg;
+                linkStatus.style.display = 'block';
+                linkSubmitBtn.disabled = false;
+            }
         }
     });
 </script>
@@ -1235,6 +1436,32 @@ END:VCALENDAR`;
             <div id="uploadStatus" class="status-message" style="margin-bottom: 1.5rem; display: none;"></div>
             
             <button type="submit" class="btn-primary" id="uploadSubmitBtn">Upload File</button>
+        </form>
+    </div>
+</div>
+
+<!-- Add Link Modal -->
+<div id="addLinkModal" class="modal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 500px; padding: 2rem; box-sizing: border-box; position: relative; margin: auto; animation: fadeInUp 0.3s ease-out; border: 1px solid var(--border-color); border-radius: 16px; background-color: var(--surface-color);">
+        <button id="closeLinkModalBtn" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        <h3 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 1.4rem; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Add Link</h3>
+        <p id="modalEventSubjectLink" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0; margin-bottom: 1.5rem; word-break: break-all; font-weight: 500;"></p>
+        
+        <form id="linkForm">
+            <input type="hidden" id="linkEventId" name="event_id">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="linkDescription" style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">Description</label>
+                <input type="text" id="linkDescription" name="description" placeholder="e.g. Briefing Notes, Command Post Location" required style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(15, 23, 42, 0.6); color: var(--text-main); font-size: 0.95rem; box-sizing: border-box;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="linkUrl" style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">URL</label>
+                <input type="text" id="linkUrl" name="url" placeholder="https://example.com/briefing" required style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(15, 23, 42, 0.6); color: var(--text-main); font-size: 0.95rem; box-sizing: border-box;">
+            </div>
+
+            <div id="linkStatus" class="status-message" style="margin-bottom: 1.5rem; display: none;"></div>
+            
+            <button type="submit" class="btn-primary" id="linkSubmitBtn">Add Link</button>
         </form>
     </div>
 </div>
