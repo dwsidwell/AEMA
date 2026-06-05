@@ -1659,9 +1659,10 @@ def get_events():
                     event_end = detail_data.get('eventEnd', '')
                     description = detail_data.get('description', '')
                     
-                    # Filter attendees where response == 1 (attending)
+                    # Filter attendees where response == 1 (attending) and response == 2 (not attending)
                     all_attendees = detail_data.get('eventAttendees', [])
                     attending = [a for a in all_attendees if a.get('response') == 1]
+                    not_attending = [a for a in all_attendees if a.get('response') == 2]
                     
                     # Find logged in user's response status (0=not sure, 1=attending, 2=not attending)
                     user_member_id = str(current_user.get('IAR_memberId', '')).strip() if current_user else ""
@@ -1693,6 +1694,7 @@ def get_events():
                         'eventEnd': event_end,
                         'description': description,
                         'attendees': attending,
+                        'not_attending': not_attending,
                         'documents': allowed_docs,
                         'links': allowed_links,
                         'user_response': user_response,
@@ -1836,6 +1838,7 @@ def respond_to_event():
             
             all_attendees = detail_data.get('eventAttendees', [])
             attending = [a for a in all_attendees if a.get('response') == 1]
+            not_attending = [a for a in all_attendees if a.get('response') == 2]
             
             # Find user's new response status
             user_response = 0
@@ -1879,6 +1882,7 @@ def respond_to_event():
                 'eventEnd': event_end,
                 'description': description,
                 'attendees': attending,
+                'not_attending': not_attending,
                 'documents': allowed_docs,
                 'links': allowed_links,
                 'user_response': user_response,
