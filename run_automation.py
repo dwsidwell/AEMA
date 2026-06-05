@@ -12,6 +12,7 @@ from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.utils import formatdate
 import json
+import urllib.parse
 
 # Load environment variables
 load_dotenv()
@@ -56,6 +57,31 @@ if loki_url and loki_username:
 else:
     logging.basicConfig(level=logging.INFO)
     logger.warning("Grafana Loki credentials not fully configured. Logging to console only.")
+
+DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+EVENT_DOCS_FILE = os.path.join(DATA_DIR, 'event_documents.json')
+EVENT_LINKS_FILE = os.path.join(DATA_DIR, 'event_links.json')
+PORTAL_URL = os.environ.get('PORTAL_URL', 'http://127.0.0.1:5000').rstrip('/')
+
+def load_event_documents():
+    if not os.path.exists(EVENT_DOCS_FILE):
+        return {}
+    try:
+        with open(EVENT_DOCS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading event documents file: {e}")
+        return {}
+
+def load_event_links():
+    if not os.path.exists(EVENT_LINKS_FILE):
+        return {}
+    try:
+        with open(EVENT_LINKS_FILE, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading event links file: {e}")
+        return {}
 
 def fetch_events(days):
     if not all([AGENCY, USERNAME, PASSWORD]):
@@ -107,6 +133,9 @@ def fetch_events(days):
 
         # Step 4: Fetch details
         detailed_events = []
+        event_docs = load_event_documents()
+        event_links = load_event_links()
+        
         for event in events:
             event_id = event.get('id')
             event_start_str = event.get('eventStart', '')
@@ -143,7 +172,9 @@ def fetch_events(days):
                         'eventEnd': event_end,
                         'description': description,
                         'attendees': attending,
-                        'attendee_count': len(attending)
+                        'attendee_count': len(attending),
+                        'documents': event_docs.get(str(event_id), []),
+                        'links': event_links.get(str(event_id), [])
                     })
                 except Exception as e:
                     continue
@@ -264,6 +295,26 @@ def format_events_summary(events):
         if len(words) > 50:
             desc = " ".join(words[:50]) + "..."
 
+        attachments_html = ""
+        documents = event.get('documents', [])
+        links = event.get('links', [])
+        if documents or links:
+            attachments_html += '<div style="margin-top: 10px; font-family: sans-serif;">'
+            for doc in documents:
+                file_url = f"{PORTAL_URL}/api/event-document/{event.get('id')}/{urllib.parse.quote(doc['filename'])}"
+                attachments_html += f"""
+                <a href="{file_url}" target="_blank" style="display: inline-block; background-color: #ecfeff; border: 1px solid #a5f3fc; color: #0891b2; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
+                    📄 {doc['filename']} ({doc['file_size']})
+                </a>
+                """
+            for link in links:
+                attachments_html += f"""
+                <a href="{link['url']}" target="_blank" style="display: inline-block; background-color: #faf5ff; border: 1px solid #e9d5ff; color: #7c3aed; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
+                    🔗 {link['description']}
+                </a>
+                """
+            attachments_html += '</div>'
+
         html += f"""
                     <tr>
                         <td style="{td_style} border-left: { '4px solid #ef4444' if attendee_count == 0 else '' };">
@@ -273,6 +324,7 @@ def format_events_summary(events):
                         <td style="{td_style}">
                             <div class="subject">{event.get('subject', '')}</div>
                             <div class="desc">{desc}</div>
+                            {attachments_html}
                         </td>
                         <td style="{td_style}">{attendees_display}</td>
                     </tr>
@@ -354,6 +406,26 @@ def format_attendee_reminder(member, events):
             
         td_style = "background-color: #ffffff;"
         
+        attachments_html = ""
+        documents = event.get('documents', [])
+        links = event.get('links', [])
+        if documents or links:
+            attachments_html += '<div style="margin-top: 10px; font-family: sans-serif;">'
+            for doc in documents:
+                file_url = f"{PORTAL_URL}/api/event-document/{event.get('id')}/{urllib.parse.quote(doc['filename'])}"
+                attachments_html += f"""
+                <a href="{file_url}" target="_blank" style="display: inline-block; background-color: #ecfeff; border: 1px solid #a5f3fc; color: #0891b2; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
+                    📄 {doc['filename']} ({doc['file_size']})
+                </a>
+                """
+            for link in links:
+                attachments_html += f"""
+                <a href="{link['url']}" target="_blank" style="display: inline-block; background-color: #faf5ff; border: 1px solid #e9d5ff; color: #7c3aed; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
+                    🔗 {link['description']}
+                </a>
+                """
+            attachments_html += '</div>'
+
         html += f"""
                     <tr>
                         <td style="{td_style}">
@@ -363,6 +435,7 @@ def format_attendee_reminder(member, events):
                         <td style="{td_style}">
                             <div class="subject">{event.get('subject', '')}</div>
                             <div class="desc">{desc}</div>
+                            {attachments_html}
                         </td>
                     </tr>
         """
