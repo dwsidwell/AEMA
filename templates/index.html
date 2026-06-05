@@ -464,8 +464,9 @@
             <thead>
                 <tr>
                     <th width="20%">Event Start</th>
-                    <th width="35%">Subject</th>
-                    <th width="45%">Attendees (Response = 1)</th>
+                    <th width="30%">Subject</th>
+                    <th width="25%">Attending (Response = 1)</th>
+                    <th width="25%">Not Attending (Response = 2)</th>
                 </tr>
             </thead>
             <tbody>
@@ -698,7 +699,7 @@ END:VCALENDAR`;
             tbody.innerHTML = '';
             
             if (!events || events.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 2rem; color: var(--text-muted);">No events found for the next ' + daysInput.value + ' days.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);">No events found for the next ' + daysInput.value + ' days.</td></tr>';
                 resultsContainer.style.display = 'block';
                 return;
             }
@@ -1041,6 +1042,34 @@ END:VCALENDAR`;
                 tdAttendees.appendChild(none);
             }
             tr.appendChild(tdAttendees);
+
+            // Not Attending
+            const tdNotAttending = document.createElement('td');
+            if (event.not_attending && event.not_attending.length > 0) {
+                event.not_attending.sort((a, b) => {
+                    const nameA = (a.member && a.member.name) ? a.member.name.toLowerCase() : '';
+                    const nameB = (b.member && b.member.name) ? b.member.name.toLowerCase() : '';
+                    return nameA.localeCompare(nameB);
+                });
+                
+                event.not_attending.forEach(a => {
+                    const fullName = getAttendeeName(a);
+                    const span = document.createElement('span');
+                    span.className = 'attendee-tag';
+                    span.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    span.style.color = 'var(--error-color)';
+                    span.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                    span.textContent = fullName;
+                    span.title = JSON.stringify(a);
+                    tdNotAttending.appendChild(span);
+                });
+            } else {
+                const none = document.createElement('div');
+                none.className = 'no-attendees';
+                none.textContent = 'None';
+                tdNotAttending.appendChild(none);
+            }
+            tr.appendChild(tdNotAttending);
         }
 
     });
