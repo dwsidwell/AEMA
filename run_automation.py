@@ -27,7 +27,38 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 SMTP_USER = os.environ.get('SMTP_USER')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
 EMAIL_SENDER = os.environ.get('EMAIL_SENDER', SMTP_USER)
+_cached_automation_data = None
+_attempted_init = False
+
+def get_cached_data(key):
+    global _cached_automation_data, _attempted_init
+    internal_web_url = os.environ.get('INTERNAL_WEB_URL')
+    if internal_web_url and not _attempted_init:
+        _attempted_init = True
+        secret_key = os.environ.get('SECRET_KEY')
+        if not secret_key:
+            secret_key = os.environ.get('SITE_PASSWORD')
+        try:
+            url = f"{internal_web_url.rstrip('/')}/api/private/automation-data"
+            headers = {'X-Internal-Token': secret_key or ''}
+            logger.info(f"Fetching automation data from internal API: {url}")
+            resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                _cached_automation_data = resp.json()
+                logger.info("Successfully fetched automation data from internal API.")
+            else:
+                logger.error(f"Failed to fetch automation data from internal API: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            logger.error(f"Error fetching automation data from internal API: {e}")
+
+    if _cached_automation_data and key in _cached_automation_data:
+        return _cached_automation_data[key]
+    return None
+
 def load_settings():
+    cached = get_cached_data('settings')
+    if cached is not None:
+        return cached
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, 'r') as f:
@@ -84,6 +115,9 @@ USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 PORTAL_URL = os.environ.get('PORTAL_URL', 'http://127.0.0.1:5000').rstrip('/')
 
 def load_event_documents():
+    cached = get_cached_data('event_documents')
+    if cached is not None:
+        return cached
     if not os.path.exists(EVENT_DOCS_FILE):
         return {}
     try:
@@ -91,9 +125,12 @@ def load_event_documents():
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading event documents file: {e}")
-        return {}
+    return {}
 
 def load_event_links():
+    cached = get_cached_data('event_links')
+    if cached is not None:
+        return cached
     if not os.path.exists(EVENT_LINKS_FILE):
         return {}
     try:
@@ -101,7 +138,7 @@ def load_event_links():
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading event links file: {e}")
-        return {}
+    return {}
 
 def fetch_events(days):
     if not all([AGENCY, USERNAME, PASSWORD]):
@@ -588,6 +625,9 @@ def send_attendee_email(to_email, html_content, server):
 
 
 def load_users():
+    cached = get_cached_data('users')
+    if cached is not None:
+        return cached
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, 'r') as f:

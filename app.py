@@ -2439,5 +2439,23 @@ def admin_settings():
         success=success
     )
 
+@app.route('/api/private/automation-data', methods=['GET'])
+def get_private_automation_data():
+    token = request.headers.get('X-Internal-Token')
+    expected_token = os.environ.get('SECRET_KEY')
+    if not expected_token:
+        expected_token = app.secret_key or os.environ.get('SITE_PASSWORD')
+    
+    if not token or token != expected_token:
+        logger.warning("Unauthorized private network access attempt to /api/private/automation-data")
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    return jsonify({
+        "users": load_users(),
+        "settings": load_settings(),
+        "event_documents": load_event_documents(),
+        "event_links": load_event_links()
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
