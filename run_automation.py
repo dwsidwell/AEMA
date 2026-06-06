@@ -27,12 +27,30 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 SMTP_USER = os.environ.get('SMTP_USER')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
 EMAIL_SENDER = os.environ.get('EMAIL_SENDER', SMTP_USER)
-EMAIL_RECIPIENTS = [email.strip() for email in os.environ.get('EMAIL_RECIPIENTS', '').split(',') if email.strip()]
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading settings.json in automation script: {e}")
+    return {}
 
-# Hardcoded CCs for testing attendee reminders
-CC_EMAILS = ["dwsidwell@gmail.com"]
-# Hardcoded testing filter for attendee reminders
-TESTING_LAST_NAMES = ["Sidwell V31", "Schur V22"]
+def get_weekly_summary_recipients():
+    settings = load_settings()
+    emails_str = settings.get('weekly_summary_to_emails', '')
+    if emails_str:
+        return [email.strip() for email in emails_str.split(',') if email.strip()]
+    # Fallback to env variable
+    return [email.strip() for email in os.environ.get('EMAIL_RECIPIENTS', '').split(',') if email.strip()]
+
+def get_attendee_reminder_cc():
+    settings = load_settings()
+    emails_str = settings.get('attendee_reminder_cc_emails', '')
+    if emails_str is not None and emails_str.strip() != '':
+        return [email.strip() for email in emails_str.split(',') if email.strip()]
+    # Fallback to default
+    return ["dwsidwell@gmail.com"]
 
 # Fetch 15 days of data for the summary email
 DAYS_TO_PULL_SUMMARY = 15
@@ -61,6 +79,7 @@ else:
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 EVENT_DOCS_FILE = os.path.join(DATA_DIR, 'event_documents.json')
 EVENT_LINKS_FILE = os.path.join(DATA_DIR, 'event_links.json')
+SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
 PORTAL_URL = os.environ.get('PORTAL_URL', 'http://127.0.0.1:5000').rstrip('/')
 
 def load_event_documents():
@@ -466,13 +485,14 @@ def attach_logo(msg):
 
 
 def send_summary_email(html_content, server):
-    if not EMAIL_RECIPIENTS:
+    recipients = get_weekly_summary_recipients()
+    if not recipients:
         return False
         
     msg = MIMEMultipart('related')
     msg['Subject'] = f"Upcoming EMA volunteer events and current attendance - {datetime.date.today().strftime('%m/%d/%Y')}"
     msg['From'] = EMAIL_SENDER
-    msg['To'] = ", ".join(EMAIL_RECIPIENTS)
+    msg['To'] = ", ".join(recipients)
     msg['Date'] = formatdate(localtime=True)
 
     msg_alternative = MIMEMultipart('alternative')
@@ -484,19 +504,21 @@ def send_summary_email(html_content, server):
     attach_logo(msg)
 
     try:
-        server.sendmail(EMAIL_SENDER, EMAIL_RECIPIENTS, msg.as_string())
-        logger.info(f"Summary email sent successfully to {len(EMAIL_RECIPIENTS)} recipient(s).", extra={"tags": {"event_type": "script_telemetry", "action": "summary_email_sent"}})
+        server.sendmail(EMAIL_SENDER, recipients, msg.as_string())
+        logger.info(f"Summary email sent successfully to {len(recipients)} recipient(s).", extra={"tags": {"event_type": "script_telemetry", "action": "summary_email_sent"}})
         return True
     except Exception as e:
         logger.error(f"Failed to send summary email: {str(e)}", extra={"tags": {"event_type": "script_telemetry", "action": "summary_email_error"}})
         return False
 
 def send_attendee_email(to_email, html_content, server):
+    cc_emails = get_attendee_reminder_cc()
     msg = MIMEMultipart('related')
     msg['Subject'] = "Upcoming AEMA events you are signed up for"
     msg['From'] = EMAIL_SENDER
     msg['To'] = to_email
-    msg['Cc'] = ", ".join(CC_EMAILS)
+    if cc_emails:
+        msg['Cc'] = ", ".join(cc_emails)
     msg['Date'] = formatdate(localtime=True)
 
     msg_alternative = MIMEMultipart('alternative')
@@ -507,11 +529,11 @@ def send_attendee_email(to_email, html_content, server):
     
     attach_logo(msg)
     
-    recipients = [to_email] + CC_EMAILS
+    recipients = [to_email] + cc_emails
 
     try:
         server.sendmail(EMAIL_SENDER, recipients, msg.as_string())
-        logger.info(f"Attendee email sent successfully to {to_email} (CC: {', '.join(CC_EMAILS)}).", extra={"tags": {"event_type": "script_telemetry", "action": "attendee_email_sent"}})
+        logger.info(f"Attendee email sent successfully to {to_email} (CC: {', '.join(cc_emails)}).", extra={"tags": {"event_type": "script_telemetry", "action": "attendee_email_sent"}})
         return True
     except Exception as e:
         logger.error(f"Failed to send attendee email to {to_email}: {str(e)}", extra={"tags": {"event_type": "script_telemetry", "action": "attendee_email_error"}})
@@ -600,18 +622,12 @@ if __name__ == "__main__":
                     skipped_count += 1
                     continue
                 
-                # --- TESTING GUARD ---
-                # Remove or comment out this block when moving to production
-                if last_name not in TESTING_LAST_NAMES:
-                    skipped_count += 1
-                    continue
-                
                 html_content = format_attendee_reminder(member, member_events)
                 success = send_attendee_email(member_email, html_content, server)
                 if success:
                     sent_count += 1
                     
-            logger.info(f"Finished processing attendees. Sent: {sent_count}, Skipped (due to testing filter): {skipped_count}")
+            logger.info(f"Finished processing attendees. Sent: {sent_count}, Skipped (opted out): {skipped_count}")
             
             server.quit()
         except Exception as e:

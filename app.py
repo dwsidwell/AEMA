@@ -172,7 +172,9 @@ SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
         default_settings = {
-            "allow_iar_status_change": True
+            "allow_iar_status_change": True,
+            "weekly_summary_to_emails": "",
+            "attendee_reminder_cc_emails": ""
         }
         try:
             with open(SETTINGS_FILE, 'w') as f:
@@ -186,7 +188,11 @@ def load_settings():
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading settings.json: {e}")
-        return {"allow_iar_status_change": True}
+        return {
+            "allow_iar_status_change": True,
+            "weekly_summary_to_emails": "",
+            "attendee_reminder_cc_emails": ""
+        }
 
 def save_settings(settings):
     try:
@@ -2411,7 +2417,13 @@ def admin_settings():
     
     if request.method == 'POST':
         allow_iar_status_change = request.form.get('allow_iar_status_change') == 'yes'
+        weekly_summary_to_emails = request.form.get('weekly_summary_to_emails', '').strip()
+        attendee_reminder_cc_emails = request.form.get('attendee_reminder_cc_emails', '').strip()
+        
         settings['allow_iar_status_change'] = allow_iar_status_change
+        settings['weekly_summary_to_emails'] = weekly_summary_to_emails
+        settings['attendee_reminder_cc_emails'] = attendee_reminder_cc_emails
+        
         if save_settings(settings):
             success = "Settings saved successfully!"
             logger.info(f"System settings updated by admin {session.get('last_name')}")
@@ -2421,6 +2433,8 @@ def admin_settings():
     return render_template(
         'settings.html',
         allow_iar_status_change=settings.get('allow_iar_status_change', True),
+        weekly_summary_to_emails=settings.get('weekly_summary_to_emails', ''),
+        attendee_reminder_cc_emails=settings.get('attendee_reminder_cc_emails', ''),
         error=error,
         success=success
     )
