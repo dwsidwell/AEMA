@@ -177,6 +177,10 @@
             background: linear-gradient(90deg, #3b82f6, #60a5fa);
         }
 
+        .card-iar-admin::before {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
         .card-gsar::before {
             background: linear-gradient(90deg, #8b5cf6, #d8b4fe);
         }
@@ -255,6 +259,20 @@
 
         .btn-lead:hover {
             background-color: #059669;
+            transform: translateY(-1px);
+        }
+
+        .card-your-hours::before {
+            background: linear-gradient(90deg, #a855f7, #f43f5e);
+        }
+
+        .btn-your-hours {
+            background-color: #a855f7;
+            color: white;
+        }
+
+        .btn-your-hours:hover {
+            background-color: #9333ea;
             transform: translateY(-1px);
         }
 
@@ -369,6 +387,48 @@
             transform: translateY(-1px);
         }
 
+        .card-users-admin::before {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .btn-users-admin {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-users-admin:hover {
+            background-color: #d97706;
+            transform: translateY(-1px);
+        }
+
+        .card-settings-admin::before {
+            background: linear-gradient(90deg, #ec4899, #f43f5e);
+        }
+
+        .btn-settings-admin {
+            background-color: #ec4899;
+            color: white;
+        }
+
+        .btn-settings-admin:hover {
+            background-color: #db2777;
+            transform: translateY(-1px);
+        }
+
+        .card-hours-admin::before {
+            background: linear-gradient(90deg, #6366f1, #06b6d4);
+        }
+
+        .btn-hours-admin {
+            background-color: #6366f1;
+            color: white;
+        }
+
+        .btn-hours-admin:hover {
+            background-color: #4f46e5;
+            transform: translateY(-1px);
+        }
+
         .section-divider {
             display: flex;
             align-items: center;
@@ -399,6 +459,201 @@
 
         .grid-lead {
             margin-top: 0.75rem;
+        }
+
+        /* Grid Row Layouts */
+        .grid-row-2 {
+            margin-top: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .grid-row-1 {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+            .grid-row-2 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            .card-my-schedule {
+                grid-column: span 2;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .grid-row-2 {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
+        }
+
+        /* My Schedule Card Styles */
+        .card-my-schedule::before {
+            background: linear-gradient(90deg, #a855f7, #6366f1);
+        }
+
+        .schedule-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        /* Custom scrollbar for schedule container */
+        .schedule-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .schedule-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 4px;
+        }
+        .schedule-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        .schedule-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .upcoming-event-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 0.75rem;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .upcoming-event-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .upcoming-event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .upcoming-event-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .upcoming-event-date-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .upcoming-event-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1.3;
+        }
+
+        /* Badge Styling */
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .badge-signed-up {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-not-signed-up {
+            background-color: rgba(148, 163, 184, 0.1);
+            color: var(--text-muted);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        /* Documents styles */
+        .upcoming-event-docs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed rgba(255, 255, 255, 0.05);
+        }
+
+        .doc-pill {
+            background-color: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 4px;
+            padding: 0.15rem 0.4rem;
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            max-width: 100%;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .doc-pill:hover {
+            background-color: rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        .doc-link {
+            color: #22d3ee;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            overflow: hidden;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .doc-link span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 110px;
+        }
+
+        /* Message styling */
+        .schedule-message {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 1.5rem 1rem;
+            line-height: 1.4;
+        }
+
+        .schedule-message a {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+
+        /* Loading spinner inside card */
+        .card-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 120px;
+        }
+
+        .card-spinner-icon {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #a855f7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
@@ -438,7 +693,25 @@
         </header>
 
         <!-- Section 1: Volunteer Tools (Everyone) -->
-        <div class="grid">
+        <div class="grid grid-row-1">
+            <div class="card card-my-schedule">
+                <div>
+                    <h2 class="card-title" style="display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap;">
+                        <span>My Upcoming Events</span>
+                        <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted); font-style: italic; text-transform: none;">change status in IAR app</span>
+                    </h2>
+                    <p class="card-description" style="margin-bottom: 0.5rem;">
+                        Your events for the next 10 days.
+                    </p>
+                    <div id="schedule-container" class="schedule-container">
+                        <div class="card-spinner" id="schedule-spinner">
+                            <div class="card-spinner-icon"></div>
+                        </div>
+                        <div id="schedule-list"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card card-iar">
                 <div>
                     <h2 class="card-title">IAR Event Dashboard</h2>
@@ -448,17 +721,9 @@
                 </div>
                 <a href="/iar" class="btn-portal btn-iar">Open IAR Dashboard</a>
             </div>
+        </div>
 
-            <div class="card card-gsar">
-                <div>
-                    <h2 class="card-title">GSAR Continuing Ed</h2>
-                    <p class="card-description">
-                        Monitor your Search and Rescue continuing training progress. View total accumulated hours, completion logs, and breakdown statistics.
-                    </p>
-                </div>
-                <a href="/gsar" class="btn-portal btn-gsar">View Continuing Ed</a>
-            </div>
-
+        <div class="grid grid-row-2">
             <div class="card card-newsletters">
                 <div>
                     <h2 class="card-title">Newsletters</h2>
@@ -512,6 +777,26 @@
                     </ul>
                 </div>
             </div>
+
+            <div class="card card-your-hours">
+                <div>
+                    <h2 class="card-title">Your Hours</h2>
+                    <p class="card-description">
+                        View your logged volunteer hours for the year, category breakdowns, and track progress against minimum membership requirements.
+                    </p>
+                </div>
+                <a href="/your-hours" class="btn-portal btn-your-hours">View Your Hours</a>
+            </div>
+
+            <div class="card card-gsar">
+                <div>
+                    <h2 class="card-title">GSAR Continuing Ed</h2>
+                    <p class="card-description">
+                        Monitor your Search and Rescue continuing training progress. View total accumulated hours, completion logs, and breakdown statistics.
+                    </p>
+                </div>
+                <a href="/gsar" class="btn-portal btn-gsar">View Continuing Ed</a>
+            </div>
         </div>
 
         <!-- Section 2: Leadership Panels (Admins & Sidwell Only) -->
@@ -522,6 +807,16 @@
 
         <div class="grid grid-lead">
             {% if is_admin %}
+            <div class="card card-iar-admin">
+                <div>
+                    <h2 class="card-title">IAR Admin Dashboard</h2>
+                    <p class="card-description">
+                        Manage event documents (upload and delete), filter attendee responses, export spreadsheets, and view attendance summaries.
+                    </p>
+                </div>
+                <a href="/iar-admin" class="btn-portal btn-iar">Open IAR Admin</a>
+            </div>
+
             <div class="card card-lead">
                 <div>
                     <h2 class="card-title">GSAR Team Lead</h2>
@@ -530,6 +825,36 @@
                     </p>
                 </div>
                 <a href="/gsar-lead" class="btn-portal btn-lead">Open Lead Dashboard</a>
+            </div>
+
+            <div class="card card-users-admin">
+                <div>
+                    <h2 class="card-title">User Administration</h2>
+                    <p class="card-description">
+                        Manage volunteer accounts: create new profiles, edit active details, reset passwords, or activate/deactivate portal access.
+                    </p>
+                </div>
+                <a href="/admin/users" class="btn-portal btn-users-admin">Manage Users</a>
+            </div>
+
+            <div class="card card-hours-admin">
+                <div>
+                    <h2 class="card-title">Hours &amp; Requirements Admin</h2>
+                    <p class="card-description">
+                        View the complete volunteer hours and minimum requirements sheets. Search volunteers, view detailed breakouts, and track progress against goals.
+                    </p>
+                </div>
+                <a href="/admin/hours" class="btn-portal btn-hours-admin">Hours Admin</a>
+            </div>
+
+            <div class="card card-settings-admin">
+                <div>
+                    <h2 class="card-title">System Settings</h2>
+                    <p class="card-description">
+                        Maintain portal parameters: toggle feature availability, response overrides, and other global system configurations.
+                    </p>
+                </div>
+                <a href="/admin/settings" class="btn-portal btn-settings-admin">System Settings</a>
             </div>
             {% endif %}
 
@@ -562,6 +887,130 @@
             if (overlay) {
                 overlay.style.display = 'none';
             }
+        });
+
+        // Load upcoming events (next 10 days)
+        document.addEventListener('DOMContentLoaded', function() {
+            const scheduleList = document.getElementById('schedule-list');
+            const spinner = document.getElementById('schedule-spinner');
+
+            if (!scheduleList || !spinner) return;
+
+            fetch('/api/events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ days: 10 })
+            })
+            .then(response => {
+                if (response.status === 400 || response.status === 401) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Configure IAR credentials in your profile.');
+                    });
+                }
+                if (!response.ok) {
+                    throw new Error('Could not load events.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                spinner.style.display = 'none';
+                let events = data.events || [];
+                
+                // Only show events the user is signed up for (user_response === 1)
+                events = events.filter(event => event.user_response === 1);
+                
+                if (events.length === 0) {
+                    scheduleList.innerHTML = '<div class="schedule-message">You are not signed up for any events in the next 10 days.</div>';
+                    return;
+                }
+
+                events.forEach(event => {
+                    const eventItem = document.createElement('div');
+                    eventItem.className = 'upcoming-event-item';
+                    eventItem.style.marginBottom = '0.5rem';
+
+                    let dateStr = 'Unknown Date';
+                    let timeStr = 'Unknown Time';
+                    if (event.eventStart) {
+                        try {
+                            const d = new Date(event.eventStart);
+                            if (!isNaN(d.getTime())) {
+                                dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                                timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+                            }
+                        } catch (e) {}
+                    }
+
+                    const isSignedUp = (event.user_response === 1);
+                    const statusBadge = isSignedUp 
+                        ? '<span class="badge badge-signed-up">Signed Up</span>'
+                        : '<span class="badge badge-not-signed-up">Not Signed Up</span>';
+
+                    let docsHtml = '';
+                    if (isSignedUp && ((event.documents && event.documents.length > 0) || (event.links && event.links.length > 0))) {
+                        docsHtml = `<div class="upcoming-event-docs">`;
+                        
+                        // Documents
+                        if (event.documents && event.documents.length > 0) {
+                            event.documents.forEach(doc => {
+                                const fileUrl = `/api/event-document/${event.id}/${encodeURIComponent(doc.filename)}`;
+                                docsHtml += `
+                                    <div class="doc-pill">
+                                        <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="doc-link" title="${doc.filename} (${doc.file_size})">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #22d3ee; flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                            <span>${doc.filename}</span>
+                                            <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal; margin-left: 2px;">(${doc.file_size})</span>
+                                        </a>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        // Links
+                        if (event.links && event.links.length > 0) {
+                            event.links.forEach(link => {
+                                const uploadedByStr = link.uploaded_by ? ` by ${link.uploaded_by}` : '';
+                                const uploadedAtStr = link.uploaded_at ? ` on ${link.uploaded_at}` : '';
+                                docsHtml += `
+                                    <div class="doc-pill" style="background-color: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.2);">
+                                        <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="doc-link" style="color: #c084fc;" title="${link.url}${uploadedByStr}${uploadedAtStr}">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc; flex-shrink: 0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                                            <span>${link.description}</span>
+                                        </a>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        docsHtml += `</div>`;
+                    }
+
+                    eventItem.innerHTML = `
+                        <div class="upcoming-event-header">
+                            <div class="upcoming-event-info">
+                                <div class="upcoming-event-date-time">${dateStr} • ${timeStr}</div>
+                                <div class="upcoming-event-title">${event.subject || 'Untitled Event'}</div>
+                            </div>
+                            <div style="flex-shrink: 0;">
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        ${docsHtml}
+                    `;
+                    scheduleList.appendChild(eventItem);
+                });
+            })
+            .catch(error => {
+                spinner.style.display = 'none';
+                let message = error.message || 'Could not load events.';
+                if (message.includes('update your IAR credentials') || message.includes('IAR credentials')) {
+                    scheduleList.innerHTML = `<div class="schedule-message">Configure IAR credentials in your <a href="/profile">profile</a> to view your schedule.</div>`;
+                } else {
+                    scheduleList.innerHTML = `<div class="schedule-message">${message}</div>`;
+                }
+            });
         });
     </script>
 </body>
