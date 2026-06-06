@@ -76,10 +76,11 @@ else:
     logging.basicConfig(level=logging.INFO)
     logger.warning("Grafana Loki credentials not fully configured. Logging to console only.")
 
-DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
 EVENT_DOCS_FILE = os.path.join(DATA_DIR, 'event_documents.json')
 EVENT_LINKS_FILE = os.path.join(DATA_DIR, 'event_links.json')
 SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
+USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 PORTAL_URL = os.environ.get('PORTAL_URL', 'http://127.0.0.1:5000').rstrip('/')
 
 def load_event_documents():
@@ -396,72 +397,117 @@ def format_attendee_reminder(member, events):
             <p style="margin: 10px 0 0 0; color: #bfdbfe; font-size: 14px;">Next {DAYS_TO_PULL_REMINDERS} Days Overview</p>
         </div>
         <div class="content">
+    """
+    
+    if not events:
+        html += f"""
+            <p>Hi {first_name},</p>
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px; text-align: center; color: #64748b; font-size: 16px; margin: 10px 0;">
+                You are not signed up for any events in this time period.
+            </div>
+        """
+    else:
+        html += f"""
             <p>Hi {first_name},</p>
             <p>Here are the upcoming IamResponding EMA events you are signed up for in the next {DAYS_TO_PULL_REMINDERS} days:</p>
             <div class="table-wrapper">
                 <table>
                     <tr>
-                        <th style="width: 25%;">Date & Time</th>
-                        <th style="width: 75%;">Event Details</th>
-                    </tr>
-    """
-
-    for event in events:
-        start_time = event.get('eventStart', '')
-        try:
-            # Parse as UTC, then convert to Central Time
-            dt_utc = datetime.datetime.strptime(start_time[:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=datetime.timezone.utc)
-            dt_central = dt_utc.astimezone(ZoneInfo("America/Chicago"))
-            formatted_time = dt_central.strftime('%m/%d/%Y %I:%M %p')
-            date_part, time_part = formatted_time.split(' ', 1)
-        except ValueError:
-            date_part = start_time[:10]
-            time_part = start_time[11:16]
-        
-        desc = event.get('description', '')
-        words = desc.split()
-        if len(words) > 50:
-            desc = " ".join(words[:50]) + "..."
-            
-        td_style = "background-color: #ffffff;"
-        
-        attachments_html = ""
-        documents = event.get('documents', [])
-        links = event.get('links', [])
-        if documents or links:
-            attachments_html += '<div style="margin-top: 10px; font-family: sans-serif;">'
-            for doc in documents:
-                file_url = f"{PORTAL_URL}/api/event-document/{event.get('id')}/{urllib.parse.quote(doc['filename'])}"
-                attachments_html += f"""
-                <a href="{file_url}" target="_blank" style="display: inline-block; background-color: #ecfeff; border: 1px solid #a5f3fc; color: #0891b2; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
-                    📄 {doc['filename']} ({doc['file_size']})
-                </a>
-                """
-            for link in links:
-                attachments_html += f"""
-                <a href="{link['url']}" target="_blank" style="display: inline-block; background-color: #faf5ff; border: 1px solid #e9d5ff; color: #7c3aed; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
-                    🔗 {link['description']}
-                </a>
-                """
-            attachments_html += '</div>'
-
-        html += f"""
-                    <tr>
-                        <td style="{td_style}">
-                            <div class="date-badge">{date_part}</div>
-                            <div style="font-size: 14px; color: #64748b; margin-top: 4px; font-weight: 500;">{time_part}</div>
-                        </td>
-                        <td style="{td_style}">
-                            <div class="subject">{event.get('subject', '')}</div>
-                            <div class="desc">{desc}</div>
-                            {attachments_html}
-                        </td>
+                        <th style="width: 20%;">Date & Time</th>
+                        <th style="width: 50%;">Event Details</th>
+                        <th style="width: 30%;">You are volunteering with</th>
                     </tr>
         """
+        for event in events:
+            start_time = event.get('eventStart', '')
+            try:
+                # Parse as UTC, then convert to Central Time
+                dt_utc = datetime.datetime.strptime(start_time[:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+                dt_central = dt_utc.astimezone(ZoneInfo("America/Chicago"))
+                formatted_time = dt_central.strftime('%m/%d/%Y %I:%M %p')
+                date_part, time_part = formatted_time.split(' ', 1)
+            except ValueError:
+                date_part = start_time[:10]
+                time_part = start_time[11:16]
+            
+            desc = event.get('description', '')
+            words = desc.split()
+            if len(words) > 50:
+                desc = " ".join(words[:50]) + "..."
+                
+            td_style = "background-color: #ffffff;"
+            
+            attachments_html = ""
+            documents = event.get('documents', [])
+            links = event.get('links', [])
+            if documents or links:
+                attachments_html += '<div style="margin-top: 10px; font-family: sans-serif;">'
+                for doc in documents:
+                    file_url = f"{PORTAL_URL}/api/event-document/{event.get('id')}/{urllib.parse.quote(doc['filename'])}"
+                    attachments_html += f"""
+                    <a href="{file_url}" target="_blank" style="display: inline-block; background-color: #ecfeff; border: 1px solid #a5f3fc; color: #0891b2; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
+                        📄 {doc['filename']} ({doc['file_size']})
+                    </a>
+                    """
+                for link in links:
+                    attachments_html += f"""
+                    <a href="{link['url']}" target="_blank" style="display: inline-block; background-color: #faf5ff; border: 1px solid #e9d5ff; color: #7c3aed; padding: 4px 8px; border-radius: 4px; font-size: 12px; text-decoration: none; margin: 2px 4px 2px 0; font-weight: 500;">
+                        🔗 {link['description']}
+                    </a>
+                    """
+                attachments_html += '</div>'
 
-    html += """
+            # Get other attendees
+            current_member_id = str(member.get('memberId', ''))
+            current_email = member.get('memberEmail', '').strip().lower()
+            current_name = f"{member.get('name', '').strip().lower()} {member.get('lastName', '').strip().lower()}"
+
+            other_attendees = []
+            for a in event.get('attendees', []):
+                m = a.get('member', {})
+                m_id = str(m.get('memberId', ''))
+                m_email = m.get('memberEmail', '').strip().lower()
+                m_name = f"{m.get('name', '').strip().lower()} {m.get('lastName', '').strip().lower()}"
+                
+                is_current = False
+                if current_member_id and m_id == current_member_id:
+                    is_current = True
+                elif current_email and m_email == current_email:
+                    is_current = True
+                elif m_name == current_name:
+                    is_current = True
+                    
+                if not is_current:
+                    other_attendees.append(f"{m.get('name', '').strip()} {m.get('lastName', '').strip()}")
+
+            if not other_attendees:
+                other_display = "<em>None</em>"
+            else:
+                other_list_items = "".join([f"<li style='margin-bottom: 4px;'>{name}</li>" for name in other_attendees])
+                other_display = f"<ul style='margin: 0; padding-left: 20px; color: #334155;'>{other_list_items}</ul>"
+
+            html += f"""
+                        <tr>
+                            <td style="{td_style}">
+                                <div class="date-badge">{date_part}</div>
+                                <div style="font-size: 14px; color: #64748b; margin-top: 4px; font-weight: 500;">{time_part}</div>
+                            </td>
+                            <td style="{td_style}">
+                                <div class="subject">{event.get('subject', '')}</div>
+                                <div class="desc">{desc}</div>
+                                {attachments_html}
+                            </td>
+                            <td style="{td_style}">
+                                {other_display}
+                            </td>
+                        </tr>
+            """
+        html += """
                 </table>
             </div>
+        """
+        
+    html += """
         </div>
         <div class="footer">
             This is an automated reminder from the IamResponding Event Viewer.
@@ -539,7 +585,7 @@ def send_attendee_email(to_email, html_content, server):
         logger.error(f"Failed to send attendee email to {to_email}: {str(e)}", extra={"tags": {"event_type": "script_telemetry", "action": "attendee_email_error"}})
         return False
 
-USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
+
 
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -609,21 +655,50 @@ if __name__ == "__main__":
             sent_count = 0
             skipped_count = 0
             
-            for member_id, data in attendee_groups.items():
-                member = data['member']
-                member_events = data['events']
-                last_name = member.get('lastName', '')
-                member_email = member.get('memberEmail')
+            for user_key, user_profile in users_registry.items():
+                first_name = user_profile.get('first_name', '')
+                last_name = user_profile.get('last_name', '')
                 
-                # Check weekly reminder preference in registry (defaults to True)
-                user_profile = find_user_in_registry(member, users_registry)
-                if user_profile and not user_profile.get('weekly_reminder_email', True):
-                    logger.info(f"Skipping attendee reminder for {member.get('name')} {last_name}: opted out of weekly reminder email.")
+                # Check weekly reminder preference (must exist and be explicitly enabled)
+                if not user_profile.get('weekly_reminder_email', False):
+                    logger.info(f"Skipping attendee reminder for {first_name} {last_name}: weekly reminder email is not enabled (set to No) in profile.")
                     skipped_count += 1
                     continue
                 
-                html_content = format_attendee_reminder(member, member_events)
-                success = send_attendee_email(member_email, html_content, server)
+                # Check if this user is active
+                if not user_profile.get('is_active', True):
+                    continue
+
+                # Find if this user is in attendee_groups
+                member_events = []
+                member_iar = {
+                    'name': user_profile.get('iar_first_name') or first_name,
+                    'lastName': user_profile.get('iar_last_name') or last_name,
+                    'memberEmail': user_profile.get('email', ''),
+                    'memberId': user_profile.get('IAR_memberId', '')
+                }
+                
+                # Try to find user in attendee_groups using find_user_in_registry matching logic
+                matched_data = None
+                for member_id, data in attendee_groups.items():
+                    m = data['member']
+                    matched_profile = find_user_in_registry(m, {user_key: user_profile})
+                    if matched_profile:
+                        matched_data = data
+                        break
+                
+                if matched_data:
+                    member_events = matched_data['events']
+                    member_iar = matched_data['member'] # Use scraped member info if matched
+                
+                # Send email (either with events list or empty notice)
+                html_content = format_attendee_reminder(member_iar, member_events)
+                to_email = member_iar.get('memberEmail') or user_profile.get('email')
+                if not to_email:
+                    logger.warning(f"Could not send reminder email to {first_name} {last_name}: No email address found.")
+                    continue
+                    
+                success = send_attendee_email(to_email, html_content, server)
                 if success:
                     sent_count += 1
                     
