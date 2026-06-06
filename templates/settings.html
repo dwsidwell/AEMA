@@ -164,6 +164,12 @@
             text-align: center;
         }
 
+        textarea:focus {
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.2);
+            background-color: rgba(15, 23, 42, 0.8) !important;
+        }
+
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -203,6 +209,29 @@
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-left: 32px; margin-top: 6px; line-height: 1.4;">
                     When enabled, users can respond to events directly from the dashboard. When disabled, responders cannot modify their status, and the event dashboard will indicate that responses must be updated directly in IAR.
                 </p>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); margin: 2rem 0; padding-top: 1.5rem;"></div>
+
+            <div class="form-group">
+                <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--text-main); font-weight: 600;">Email Automation Settings</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">Configure recipient lists for weekly summaries and attendee reminder emails.</p>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label for="weekly_summary_to_emails" style="font-size: 0.95rem; color: var(--text-main); font-weight: 500; margin-bottom: 0.5rem;">Weekly Summary Recipients ("To" List)</label>
+                    <textarea id="weekly_summary_to_emails" name="weekly_summary_to_emails" rows="2" placeholder="e.g. admin1@example.com, admin2@example.com" style="width: 100%; box-sizing: border-box; background-color: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); padding: 0.75rem; font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none; transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;">{{ weekly_summary_to_emails }}</textarea>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+                        Enter a comma-separated list of email addresses that should receive the weekly upcoming volunteer events summary email. If empty, falls back to the system default.
+                    </p>
+                </div>
+
+                <div>
+                    <label for="attendee_reminder_cc_emails" style="font-size: 0.95rem; color: var(--text-main); font-weight: 500; margin-bottom: 0.5rem;">Attendee Reminder CC Emails</label>
+                    <textarea id="attendee_reminder_cc_emails" name="attendee_reminder_cc_emails" rows="2" placeholder="e.g. supervisor@example.com" style="width: 100%; box-sizing: border-box; background-color: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main); padding: 0.75rem; font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none; transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;">{{ attendee_reminder_cc_emails }}</textarea>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+                        Enter a comma-separated list of email addresses to be CC'd on all automated attendee reminder emails.
+                    </p>
+                </div>
             </div>
             
             <button type="submit" class="btn-primary">Save Settings</button>
