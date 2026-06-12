@@ -42,12 +42,25 @@
         }
 
         .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
             font-size: 1.25rem;
             font-weight: 700;
+            text-decoration: none;
+        }
+
+        .navbar-logo {
+            height: 32px;
+            width: auto;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .navbar-brand span {
             background: linear-gradient(135deg, #60a5fa, #a78bfa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-decoration: none;
         }
 
         .navbar-user {
@@ -665,7 +678,10 @@
     </div>
 
     <nav class="navbar">
-        <a href="/" class="navbar-brand">Volunteer Portal</a>
+        <a href="/" class="navbar-brand">
+            <img src="/assets/AEMA_Logo.jpg" alt="Logo" class="navbar-logo">
+            <span>Volunteer Portal</span>
+        </a>
         <div class="navbar-user">
             <span class="user-tag">{{ session.get('last_name') }} ({{ session.get('victor_number') }})</span>
             <a href="/profile" class="btn-nav-outline">Profile</a>
