@@ -701,7 +701,7 @@
                         <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted); font-style: italic; text-transform: none;">change status in IAR app</span>
                     </h2>
                     <p class="card-description" style="margin-bottom: 0.5rem;">
-                        Your events for the next 7 days.
+                        Your events for the next 10 days.
                     </p>
                     <div id="schedule-container" class="schedule-container">
                         <div class="card-spinner" id="schedule-spinner">
@@ -889,7 +889,7 @@
             }
         });
 
-        // Load upcoming events (next 7 days)
+        // Load upcoming events (next 10 days)
         document.addEventListener('DOMContentLoaded', function() {
             const scheduleList = document.getElementById('schedule-list');
             const spinner = document.getElementById('schedule-spinner');
@@ -901,7 +901,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ days: 7 })
+                body: JSON.stringify({ days: 10 })
             })
             .then(response => {
                 if (response.status === 400 || response.status === 401) {
@@ -916,9 +916,13 @@
             })
             .then(data => {
                 spinner.style.display = 'none';
-                const events = data.events || [];
+                let events = data.events || [];
+                
+                // Only show events the user is signed up for (user_response === 1)
+                events = events.filter(event => event.user_response === 1);
+                
                 if (events.length === 0) {
-                    scheduleList.innerHTML = '<div class="schedule-message">No events scheduled for the next 7 days.</div>';
+                    scheduleList.innerHTML = '<div class="schedule-message">You are not signed up for any events in the next 10 days.</div>';
                     return;
                 }
 
