@@ -2567,6 +2567,13 @@ def get_private_automation_data():
         "event_links": load_event_links()
     })
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    tb = traceback.format_exc()
+    logger.error(f"Unhandled exception: {tb}")
+    return f"<h1>Internal Server Error (Exception)</h1><pre>{tb}</pre>", 500
+
 # =========================================================================
 # Volunteer Kiosk Routes & APIs
 # =========================================================================
