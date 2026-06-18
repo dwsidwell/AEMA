@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Sign-In Kiosk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #10b981;
+            --primary-hover: #059669;
+            --secondary-color: #3b82f6;
+            --secondary-hover: #2563eb;
+            --accent-color: #a855f7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .navbar-logo {
+            height: 32px;
+            width: auto;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .navbar-brand span {
+            background: linear-gradient(135deg, #34d399, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-nav-outline {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .btn-nav-outline:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            flex-grow: 1;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-large {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-large:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        /* Table Styling */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 1.1rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.015);
+        }
+
+        .badge-type {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+        }
+
+        .type-1 { background-color: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+        .type-2 { background-color: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2); }
+        .type-3 { background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2); }
+        .type-4 { background-color: rgba(168, 85, 247, 0.1); color: #c084fc; border-color: rgba(168, 85, 247, 0.2); }
+        .type-5 { background-color: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+        .type-7 { background-color: rgba(148, 163, 184, 0.1); color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); }
+        .type-8 { background-color: rgba(236, 72, 153, 0.1); color: #f472b6; border-color: rgba(236, 72, 153, 0.2); }
+
+        .btn-signout {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-signout:hover {
+            background-color: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Modal styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 550px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: transform 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .modal-content.modal-large {
+            max-width: 850px;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-main);
+        }
+
+        /* Form styling */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .flex-row .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-main);
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+
+        .radio-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .radio-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .activity-section {
+            margin-bottom: 1.5rem;
+            background: rgba(15, 23, 42, 0.15);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .activity-section-header {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.4rem;
+        }
+
+        .radio-card {
+            border: 1px solid var(--border-color);
+            background-color: rgba(15, 23, 42, 0.3);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .radio-card:hover {
+            border-color: var(--text-muted);
+            background-color: rgba(15, 23, 42, 0.5);
+        }
+
+        .radio-card.selected {
+            border-color: var(--secondary-color);
+            background-color: rgba(59, 130, 246, 0.08);
+        }
+
+        .radio-card input[type="radio"] {
+            margin: 0;
+            cursor: pointer;
+            accent-color: var(--secondary-color);
+            width: 18px;
+            height: 18px;
+        }
+
+        .radio-label {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1.25rem;
+        }
+
+        .btn-cancel {
+            background-color: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancel:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-submit {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Custom volunteer fill fields */
+        .manual-fields {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Dynamic details prompt for first-time IAR event signin */
+        .iar-details-prompt {
+            display: none;
+            background-color: rgba(168, 85, 247, 0.05);
+            border: 1px dashed rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .iar-details-title {
+            color: var(--accent-color);
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Loading Overlay styling */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .timer-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: relative;
+        }
+
+        .timer-spinner::before {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 16px;
+            background-color: var(--primary-color);
+            top: 8px;
+            left: 24px;
+            transform-origin: bottom center;
+            animation: spin 6s linear infinite;
+        }
+
+        .loading-text {
+            color: var(--text-main);
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Kiosk Loading Overlay -->
+    <div class="loading-overlay" id="kioskLoadingOverlay">
+        <div class="timer-spinner"></div>
+        <div class="loading-text">Loading Volunteer Registry & IAR Events...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/kiosk" class="navbar-brand">
+            <img src="/assets/AEMA_Logo.jpg" alt="Logo" class="navbar-logo">
+            <span>Volunteer Kiosk</span>
+        </a>
+        <a href="/kiosk-logout" class="btn-nav-outline">Lock Kiosk</a>
+    </nav>
+
+    <div class="container">
+        <div class="header-actions">
+            <div>
+                <h1>Volunteer Sign-In Portal</h1>
+                <p style="color: var(--text-muted); margin: 0.25rem 0 0 0; font-size: 0.95rem;">Please sign in when you arrive and sign out before leaving.</p>
+            </div>
+            <button class="btn-large" id="btnOpenSignIn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+                Volunteer Sign-In
+            </button>
+        </div>
+
+        <!-- Active Sign-ins -->
+        <div class="card">
+            <h2 class="section-title">Currently Signed In</h2>
+            <div class="table-wrapper">
+                <table id="activeTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%">Volunteer</th>
+                            <th style="width: 8%">Victor #</th>
+                            <th style="width: 12%">Activity Type</th>
+                            <th style="width: 15%">Subcategory</th>
+                            <th style="width: 25%">Activity Description</th>
+                            <th style="width: 12%">Sign-In Time</th>
+                            <th style="width: 8%; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign In Modal -->
+    <div class="modal-overlay" id="signInModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 class="modal-title">Volunteer Sign-In</h2>
+                <button class="modal-close" id="btnCloseSignIn">&times;</button>
+            </div>
+            <form id="signInForm">
+                <!-- Step 1: Select Volunteer -->
+                <div class="form-group">
+                    <label for="volunteerSelect">Select Your Name</label>
+                    <select id="volunteerSelect" required>
+                        <option value="" disabled selected>Choose a volunteer...</option>
+                        <!-- Populated dynamically -->
+                        <option value="__manual__">Guest / Name not in list (Type manually)</option>
+                    </select>
+                </div>
+
+                <!-- Custom/Manual Volunteer Inputs -->
+                <div class="manual-fields" id="manualFields">
+                    <div class="flex-row">
+                        <div class="form-group">
+                            <label for="manualName">Full Name</label>
+                            <input type="text" id="manualName" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="form-group" style="max-width: 150px;">
+                            <label for="manualVNum">Victor Number</label>
+                            <input type="text" id="manualVNum" placeholder="e.g. V99">
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Step 2: Select Activity -->
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label>Select Activity</label>
+                    
+                    <!-- Section: Currently Open Events -->
+                    <div class="activity-section" id="sectionCurrentlyOpen">
+                        <h3 class="activity-section-header">Currently Open Events</h3>
+                        <div class="radio-grid" id="gridCurrentlyOpen"></div>
+                    </div>
+                    
+                    <!-- Section: Common Events -->
+                    <div class="activity-section" id="sectionCommon">
+                        <h3 class="activity-section-header">Common Events</h3>
+                        <div class="radio-grid" id="gridCommon"></div>
+                    </div>
+                    
+                    <!-- Section: New Event -->
+                    <div class="activity-section" id="sectionNew">
+                        <h3 class="activity-section-header">New Event</h3>
+                        <div class="radio-grid" id="gridNew"></div>
+                    </div>
+                </div>
+
+                <!-- Step 3: First-time IAR event details / Custom details -->
+                <div class="iar-details-prompt" id="detailsPrompt">
+                    <div class="iar-details-title" id="detailsPromptTitle">Enter Event Details</div>
+                    
+                    <div class="form-group" id="activityTypeGroup">
+                        <label for="activityType">Activity Type</label>
+                        <select id="activityType">
+                            <option value="" disabled selected>Select activity category...</option>
+                            <option value="1">1 - Call out</option>
+                            <option value="2">2 - Detail/Event</option>
+                            <option value="3">3 - Meeting</option>
+                            <option value="4">4 - Training</option>
+                            <option value="5">5 - Work Night</option>
+                            <option value="7">7 - Other</option>
+                            <option value="8">8 - Admin</option>
+                        </select>
+                    </div>
+
+                    <!-- Subcategory Selection -->
+                    <div class="form-group" id="subcategoryGroup">
+                        <label for="subcategorySelect">Select Subcategory</label>
+                        <select id="subcategorySelect" required>
+                            <option value="" disabled selected>Choose a subcategory...</option>
+                            <option value="A- TIME">A- TIME</option>
+                            <option value="B- GSAR">B- GSAR</option>
+                            <option value="C - AuxComm">C - AuxComm</option>
+                            <option value="D- Public Preparedness">D- Public Preparedness</option>
+                            <option value="E- EOC">E- EOC</option>
+                            <option value="F- Weather">F- Weather</option>
+                            <option value="G-Not applicable">G-Not applicable</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="activityDescGroup" style="margin-bottom: 0;">
+                        <label for="activityDesc">Description of Activity</label>
+                        <input type="text" id="activityDesc" placeholder="Briefly describe what you are doing">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="btnCancelSignIn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="btnSubmitSignIn">Sign In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sign Out Modal -->
+    <div class="modal-overlay" id="signOutModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Confirm Sign Out</h2>
+                <button class="modal-close" id="btnCloseSignOut">&times;</button>
+            </div>
+            <form id="signOutForm">
+                <input type="hidden" id="signOutRecordId">
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+                    <p style="margin: 0; font-size: 1.25rem; font-weight: 700;" id="signOutVolunteerName"></p>
+                    <p style="margin: 0.35rem 0 0 0; color: var(--text-muted); font-size: 0.95rem;" id="signOutActivityDesc"></p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Adjust Sign-In Time</label>
+                    <div class="flex-row">
+                        <select id="signInHour" style="flex: 2;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                        <select id="signInMinute" style="flex: 2;">
+                            <option value="00">00</option>
+                            <option value="15">15</option>
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                        </select>
+                        <select id="signInAmPm" style="flex: 1.5;">
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label>Adjust Sign-Out Time</label>
+                    <div class="flex-row">
+                        <select id="signOutHour" style="flex: 2;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                        <select id="signOutMinute" style="flex: 2;">
+                            <option value="00">00</option>
+                            <option value="15">15</option>
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                        </select>
+                        <select id="signOutAmPm" style="flex: 1.5;">
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 2rem;">
+                    <button type="button" class="btn-cancel" id="btnCancelSignOut">Cancel</button>
+                    <button type="submit" class="btn-submit" id="btnSubmitSignOut" style="background-color: var(--error-color); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">Confirm Sign Out</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Adjust Sign-In Time Modal -->
+    <div class="modal-overlay" id="adjustSignInModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Adjust Sign-In Time</h2>
+                <button class="modal-close" id="btnCloseAdjustSignIn">&times;</button>
+            </div>
+            <form id="adjustSignInForm">
+                <input type="hidden" id="adjustSignInRecordId">
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+                    <p style="margin: 0; font-size: 1.25rem; font-weight: 700;" id="adjustSignInVolunteerName"></p>
+                    <p style="margin: 0.35rem 0 0 0; color: var(--text-muted); font-size: 0.95rem;" id="adjustSignInActivityDesc"></p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Sign-In Time</label>
+                    <div class="flex-row">
+                        <select id="adjustHour" style="flex: 2;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                        <select id="adjustMinute" style="flex: 2;">
+                            <option value="00">00</option>
+                            <option value="15">15</option>
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                        </select>
+                        <select id="adjustAmPm" style="flex: 1.5;">
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 2rem;">
+                    <button type="button" class="btn-cancel" id="btnCancelAdjustSignIn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="btnSubmitAdjustSignIn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const activeBody = document.getElementById('activeBody');
+        const signInModal = document.getElementById('signInModal');
+        const volunteerSelect = document.getElementById('volunteerSelect');
+        const manualFields = document.getElementById('manualFields');
+        const manualName = document.getElementById('manualName');
+        const manualVNum = document.getElementById('manualVNum');
+        const activityRadioGrid = document.getElementById('activityRadioGrid');
+        const detailsPrompt = document.getElementById('detailsPrompt');
+        const detailsPromptTitle = document.getElementById('detailsPromptTitle');
+        const activityType = document.getElementById('activityType');
+        const activityDesc = document.getElementById('activityDesc');
+        const signInForm = document.getElementById('signInForm');
+        
+        const signOutModal = document.getElementById('signOutModal');
+        const signOutForm = document.getElementById('signOutForm');
+        const signOutRecordId = document.getElementById('signOutRecordId');
+        const signOutVolunteerName = document.getElementById('signOutVolunteerName');
+        const signOutActivityDesc = document.getElementById('signOutActivityDesc');
+        
+        const signInHour = document.getElementById('signInHour');
+        const signInMinute = document.getElementById('signInMinute');
+        const signInAmPm = document.getElementById('signInAmPm');
+        
+        const signOutHour = document.getElementById('signOutHour');
+        const signOutMinute = document.getElementById('signOutMinute');
+        const signOutAmPm = document.getElementById('signOutAmPm');
+        
+        let roundedSignIn = null;
+        let roundedSignOut = null;
+
+        const adjustSignInModal = document.getElementById('adjustSignInModal');
+        const adjustSignInForm = document.getElementById('adjustSignInForm');
+        const adjustSignInRecordId = document.getElementById('adjustSignInRecordId');
+        const adjustSignInVolunteerName = document.getElementById('adjustSignInVolunteerName');
+        const adjustSignInActivityDesc = document.getElementById('adjustSignInActivityDesc');
+        
+        const adjustHour = document.getElementById('adjustHour');
+        const adjustMinute = document.getElementById('adjustMinute');
+        const adjustAmPm = document.getElementById('adjustAmPm');
+        
+        let roundedAdjustSignIn = null;
+
+        let volunteersList = [];
+        let iarEventsList = [];
+        let activeEventsList = [];
+
+        // Predefined activity maps
+        const activityLabels = {
+            1: "Call out",
+            2: "Detail/Event",
+            3: "Meeting",
+            4: "Training",
+            5: "Work Night",
+            7: "Other",
+            8: "Admin"
+        };
+
+        // Open/Close Modal
+        document.getElementById('btnOpenSignIn').addEventListener('click', async () => {
+            const loader = document.getElementById('kioskLoadingOverlay');
+            loader.style.display = 'flex';
+            try {
+                await loadModalData();
+                loader.style.display = 'none';
+                signInModal.classList.add('active');
+            } catch(e) {
+                loader.style.display = 'none';
+                alert("Failed to load options: " + e.message);
+            }
+        });
+
+        const closeModal = () => {
+            signInModal.classList.remove('active');
+            signInForm.reset();
+            manualFields.style.display = 'none';
+            detailsPrompt.style.display = 'none';
+            manualName.required = false;
+            manualVNum.required = false;
+            activityType.required = false;
+            activityDesc.required = false;
+        };
+
+        document.getElementById('btnCloseSignIn').addEventListener('click', closeModal);
+        document.getElementById('btnCancelSignIn').addEventListener('click', closeModal);
+
+        // Toggle manual volunteer inputs
+        volunteerSelect.addEventListener('change', () => {
+            if (volunteerSelect.value === '__manual__') {
+                manualFields.style.display = 'block';
+                manualName.required = true;
+                manualVNum.required = true;
+            } else {
+                manualFields.style.display = 'none';
+                manualName.required = false;
+                manualVNum.required = false;
+            }
+        });
+
+        // Load active signins
+        async function loadActive() {
+            try {
+                const response = await fetch('/api/kiosk/active');
+                const data = await response.json();
+                
+                activeBody.innerHTML = '';
+                if (!data.active || data.active.length === 0) {
+                    activeBody.innerHTML = `
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <div class="empty-icon">👥</div>
+                                    <p>No volunteers currently signed in.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                data.active.forEach(record => {
+                    const tr = document.createElement('tr');
+                    
+                    let timeStr = record.signin_time;
+                    try {
+                        const d = new Date(record.signin_time);
+                        if (!isNaN(d.getTime())) {
+                            timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+                        }
+                    } catch(e){}
+
+                    const typeLabel = activityLabels[record.activity_type] || "Unknown";
+                    const badgeClass = `badge-type type-${record.activity_type}`;
+                    const subcategoryText = record.subcategory || "G-Not applicable";
+
+                    tr.innerHTML = `
+                        <td style="font-weight: 600;">${record.name}</td>
+                        <td style="font-family: monospace; color: var(--text-muted);">${record.victor_number}</td>
+                        <td><span class="${badgeClass}">${typeLabel}</span></td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem;">${subcategoryText}</td>
+                        <td style="color: var(--text-muted);">${record.description}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span>${timeStr}</span>
+                                <button class="btn-nav-outline" style="padding: 0.15rem 0.35rem; font-size: 0.75rem; border-radius: 4px; line-height: 1;" onclick="adjustSignInTime('${record.id}', '${record.name.replace(/'/g, "\\'")}')">
+                                    Edit
+                                </button>
+                            </div>
+                        </td>
+                        <td style="text-align: right;">
+                            <button class="btn-signout" onclick="signOutVolunteer('${record.id}', '${record.name.replace(/'/g, "\\'")}')">Sign Out</button>
+                        </td>
+                    `;
+                    activeBody.appendChild(tr);
+                });
+            } catch(e) {
+                console.error("Failed to load active sign-ins:", e);
+            }
+        }
+
+        // Helper to get 12-hour parts from a date
+        function get12HourParts(date) {
+            let hours = date.getHours();
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            return {
+                hour: String(hours),
+                minute: minutes,
+                ampm: ampm
+            };
+        }
+
+        // Helper to construct local date time string in format YYYY-MM-DD HH:MM:SS
+        function getDateWithSelectedTime(baseDate, hourStr, minuteStr, ampmStr) {
+            const d = new Date(baseDate.getTime());
+            let hour = parseInt(hourStr);
+            const minute = parseInt(minuteStr);
+            
+            if (ampmStr === 'PM' && hour < 12) {
+                hour += 12;
+            }
+            if (ampmStr === 'AM' && hour === 12) {
+                hour = 0;
+            }
+            
+            d.setHours(hour, minute, 0, 0);
+            
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            const ss = '00';
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
+        // Sign Out Volunteer Action (opens modal with editable times)
+        window.signOutVolunteer = async (id, name) => {
+            try {
+                const response = await fetch('/api/kiosk/active');
+                const data = await response.json();
+                const record = data.active.find(r => r.id === id);
+                if (!record) {
+                    alert("Active record not found.");
+                    return;
+                }
+                
+                // Set modal metadata
+                signOutRecordId.value = id;
+                signOutVolunteerName.textContent = name;
+                const subLabel = record.subcategory ? ` [${record.subcategory}]` : '';
+                signOutActivityDesc.textContent = `${activityLabels[record.activity_type]} - ${record.description}${subLabel}`;
+                
+                // Parse original sign-in time and round down to the previous 15-minute mark
+                const signinDate = new Date(record.signin_time);
+                roundedSignIn = new Date(signinDate.getTime());
+                const remMinutesIn = roundedSignIn.getMinutes() % 15;
+                roundedSignIn.setMinutes(roundedSignIn.getMinutes() - remMinutesIn, 0, 0);
+                
+                // Parse current sign-out time and round up to the next 15-minute mark
+                roundedSignOut = new Date();
+                const remMinutesOut = roundedSignOut.getMinutes() % 15;
+                if (remMinutesOut !== 0 || roundedSignOut.getSeconds() > 0 || roundedSignOut.getMilliseconds() > 0) {
+                    roundedSignOut.setMinutes(roundedSignOut.getMinutes() + (15 - remMinutesOut), 0, 0);
+                } else {
+                    roundedSignOut.setMinutes(roundedSignOut.getMinutes(), 0, 0);
+                }
+                
+                // Get 12-hour parts
+                const inParts = get12HourParts(roundedSignIn);
+                const outParts = get12HourParts(roundedSignOut);
+                
+                // Pre-fill dropdown selections
+                signInHour.value = inParts.hour;
+                signInMinute.value = inParts.minute;
+                signInAmPm.value = inParts.ampm;
+                
+                signOutHour.value = outParts.hour;
+                signOutMinute.value = outParts.minute;
+                signOutAmPm.value = outParts.ampm;
+                
+                // Show modal
+                signOutModal.classList.add('active');
+            } catch(e) {
+                alert("Failed to initiate sign out: " + e.message);
+            }
+        };
+
+        const closeSignOutModal = () => {
+            signOutModal.classList.remove('active');
+            signOutForm.reset();
+        };
+
+        document.getElementById('btnCloseSignOut').addEventListener('click', closeSignOutModal);
+        document.getElementById('btnCancelSignOut').addEventListener('click', closeSignOutModal);
+
+        signOutForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('btnSubmitSignOut');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing Out...';
+            
+            const id = signOutRecordId.value;
+            
+            const customSignInStr = getDateWithSelectedTime(roundedSignIn, signInHour.value, signInMinute.value, signInAmPm.value);
+            const customSignOutStr = getDateWithSelectedTime(roundedSignOut, signOutHour.value, signOutMinute.value, signOutAmPm.value);
+            
+            // Client-side verification
+            const signInTimeVal = new Date(customSignInStr).getTime();
+            const signOutTimeVal = new Date(customSignOutStr).getTime();
+            
+            if (signOutTimeVal <= signInTimeVal) {
+                alert("Sign-out time must be after the sign-in time.");
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirm Sign Out';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/kiosk/signout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        id,
+                        custom_signin_time: customSignInStr,
+                        custom_signout_time: customSignOutStr
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    closeSignOutModal();
+                    loadActive();
+                } else {
+                    alert("Error: " + (data.error || "Failed to sign out"));
+                }
+            } catch(err) {
+                alert("Network error: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirm Sign Out';
+            }
+        });
+
+        // Adjust Sign-In Time Action
+        window.adjustSignInTime = async (id, name) => {
+            try {
+                const response = await fetch('/api/kiosk/active');
+                const data = await response.json();
+                const record = data.active.find(r => r.id === id);
+                if (!record) {
+                    alert("Active record not found.");
+                    return;
+                }
+                
+                // Set modal metadata
+                adjustSignInRecordId.value = id;
+                adjustSignInVolunteerName.textContent = name;
+                const subLabel = record.subcategory ? ` [${record.subcategory}]` : '';
+                adjustSignInActivityDesc.textContent = `${activityLabels[record.activity_type]} - ${record.description}${subLabel}`;
+                
+                // Parse current sign-in time and round to the 15-minute mark
+                const signinDate = new Date(record.signin_time);
+                roundedAdjustSignIn = new Date(signinDate.getTime());
+                const remMinutesIn = roundedAdjustSignIn.getMinutes() % 15;
+                roundedAdjustSignIn.setMinutes(roundedAdjustSignIn.getMinutes() - remMinutesIn, 0, 0);
+                
+                // Get 12-hour parts
+                const parts = get12HourParts(roundedAdjustSignIn);
+                
+                // Pre-fill dropdown selections
+                adjustHour.value = parts.hour;
+                adjustMinute.value = parts.minute;
+                adjustAmPm.value = parts.ampm;
+                
+                // Show modal
+                adjustSignInModal.classList.add('active');
+            } catch(e) {
+                alert("Failed to load sign-in details: " + e.message);
+            }
+        };
+
+        const closeAdjustSignInModal = () => {
+            adjustSignInModal.classList.remove('active');
+            adjustSignInForm.reset();
+        };
+
+        document.getElementById('btnCloseAdjustSignIn').addEventListener('click', closeAdjustSignInModal);
+        document.getElementById('btnCancelAdjustSignIn').addEventListener('click', closeAdjustSignInModal);
+
+        adjustSignInForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('btnSubmitAdjustSignIn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+            
+            const id = adjustSignInRecordId.value;
+            const customSignInStr = getDateWithSelectedTime(roundedAdjustSignIn, adjustHour.value, adjustMinute.value, adjustAmPm.value);
+            
+            try {
+                const response = await fetch('/api/kiosk/adjust-signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        id,
+                        custom_signin_time: customSignInStr
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    closeAdjustSignInModal();
+                    loadActive();
+                } else {
+                    alert("Error: " + (data.error || "Failed to adjust sign-in time"));
+                }
+            } catch(err) {
+                alert("Network error: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            }
+        });
+
+        // Fetch options dynamically when opening modal
+        async function loadModalData() {
+            try {
+                // 1. Fetch Roster & IAR/Active Events
+                const response = await fetch('/api/kiosk/modal-options');
+                const data = await response.json();
+                
+                volunteersList = data.volunteers || [];
+                iarEventsList = data.iar_events || [];
+                activeEventsList = data.active_events || [];
+
+                // 2. Populate Volunteer Select Dropdown
+                // Keep the manual option placeholder
+                volunteerSelect.innerHTML = '<option value="" disabled selected>Choose a volunteer...</option>';
+                volunteersList.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.key;
+                    opt.textContent = `${v.last_name}, ${v.first_name} (${v.victor_number})`;
+                    volunteerSelect.appendChild(opt);
+                });
+                const manualOpt = document.createElement('option');
+                manualOpt.value = '__manual__';
+                manualOpt.textContent = 'Guest / Name not in list (Type manually)';
+                volunteerSelect.appendChild(manualOpt);
+
+                // 3. Populate Activity Radio Cards
+                const gridCurrentlyOpen = document.getElementById('gridCurrentlyOpen');
+                const gridCommon = document.getElementById('gridCommon');
+                const gridNew = document.getElementById('gridNew');
+
+                gridCurrentlyOpen.innerHTML = '';
+                gridCommon.innerHTML = '';
+                gridNew.innerHTML = '';
+
+                let openEventsCount = 0;
+
+                // Category 1: Today's IAR Events (listed first)
+                if (iarEventsList && iarEventsList.length > 0) {
+                    iarEventsList.forEach(iar => {
+                        // Check if this IAR event is already active
+                        const matchedActive = activeEventsList.find(ae => ae.event_key === `iar_${iar.id}`);
+                        
+                        let displayLabel = `IAR: ${iar.subject}`;
+                        let meta = { is_iar: true, iar_id: iar.id, subject: iar.subject };
+                        
+                        if (matchedActive) {
+                            displayLabel += ' (Active)';
+                            meta.type = matchedActive.activity_type;
+                            meta.desc = matchedActive.description;
+                            meta.is_active_iar = true;
+                        }
+
+                        createRadioCardInGrid(`iar_${iar.id}`, displayLabel, 'iar', meta, gridCurrentlyOpen);
+                        openEventsCount++;
+                    });
+                }
+
+                // Category 2: Active Custom/Other Events (not IAR events)
+                if (activeEventsList && activeEventsList.length > 0) {
+                    activeEventsList.forEach(ae => {
+                        if (!ae.event_key.startsWith('iar_') && ae.event_key !== 'common_callout' && ae.event_key !== 'common_radnet') {
+                            let displayPrefix = ae.activity_type === 1 ? 'Active Call Out' : 'Active';
+                            createRadioCardInGrid(`active_${ae.event_key}`, `${displayPrefix}: ${ae.description}`, 'active', { type: ae.activity_type, desc: ae.description, event_key: ae.event_key }, gridCurrentlyOpen);
+                            openEventsCount++;
+                        }
+                    });
+                }
+
+                // Show fallback message if no currently open events
+                if (openEventsCount === 0) {
+                    gridCurrentlyOpen.innerHTML = '<div style="grid-column: 1 / -1; color: var(--text-muted); font-size: 0.9rem; padding: 0.5rem 0;">No active events currently open today.</div>';
+                }
+
+                // Category 3: Predefined Common Events
+                const commons = [
+                    { id: 'common_callout', label: 'Call Out', type: '1', desc: 'Emergency Call Out', displayLabel: 'Common: Call Out' },
+                    { id: 'common_radnet', label: 'Rad Net', type: '7', desc: 'Rad Net Monitoring/Activity', displayLabel: 'Common: Rad Net' }
+                ];
+                commons.forEach(c => {
+                    const matchedActive = activeEventsList.find(ae => ae.event_key === c.id);
+                    let displayLabel = c.displayLabel;
+                    let meta = { type: c.type, desc: c.desc };
+                    if (matchedActive) {
+                        displayLabel += ' (Active)';
+                    }
+                    createRadioCardInGrid(c.id, displayLabel, 'common', meta, gridCommon);
+                });
+
+                // Category 4: Option to Start Custom Activity (at the bottom)
+                createRadioCardInGrid('custom_new', 'Start Custom Activity...', 'custom', {}, gridNew);
+
+            } catch(e) {
+                console.error("Failed to load modal options:", e);
+            }
+        }
+
+        // Helper to create activity radio card in a specific grid
+        function createRadioCardInGrid(id, labelText, category, meta, targetGrid) {
+            const card = document.createElement('div');
+            card.className = 'radio-card';
+            card.id = `card_${id}`;
+            card.dataset.category = category;
+            card.dataset.meta = JSON.stringify(meta);
+
+            card.innerHTML = `
+                <input type="radio" name="activityRadio" id="${id}" value="${id}" required>
+                <span class="radio-label">${labelText}</span>
+            `;
+
+            card.addEventListener('click', (e) => {
+                const radio = card.querySelector('input[type="radio"]');
+                radio.checked = true;
+                handleActivitySelect(card, category, meta);
+            });
+
+            targetGrid.appendChild(card);
+        }
+
+        // Handle activity selection and conditional input prompts
+        function handleActivitySelect(selectedCard, category, meta) {
+            // Remove selection class from all cards
+            document.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+            selectedCard.classList.add('selected');
+
+            // Reset requirements
+            activityType.required = false;
+            activityDesc.required = false;
+            
+            // Always show the details prompt (Step 3) when an activity is chosen
+            detailsPrompt.style.display = 'block';
+
+            const activityTypeGroup = document.getElementById('activityTypeGroup');
+            const activityDescGroup = document.getElementById('activityDescGroup');
+            const subcategoryGroup = document.getElementById('subcategoryGroup');
+            const selectedCardId = selectedCard.querySelector('input[type="radio"]').id;
+            const subcategorySelect = document.getElementById('subcategorySelect');
+
+            // Ensure subcategory is always shown and required in the details prompt
+            if (subcategoryGroup) {
+                subcategoryGroup.style.display = 'block';
+            }
+            subcategorySelect.required = true;
+
+            // Default subcategory selection to empty placeholder
+            subcategorySelect.value = '';
+
+            // Ensure Activity Type dropdown is always shown and required in the details prompt
+            if (activityTypeGroup) {
+                activityTypeGroup.style.display = 'block';
+            }
+            activityType.required = true;
+
+            // Ensure Description field is always shown and required in the details prompt
+            if (activityDescGroup) {
+                activityDescGroup.style.display = 'block';
+            }
+            activityDesc.required = true;
+
+            if (category === 'custom') {
+                // Must specify details for custom activity
+                detailsPromptTitle.textContent = "Enter Custom Activity Details";
+                activityType.required = true;
+                activityDesc.required = true;
+                
+                // Clear inputs
+                activityType.value = '';
+                activityDesc.value = '';
+                activityDesc.placeholder = "Briefly describe what you are doing";
+            } 
+            else if (selectedCardId === 'common_callout') {
+                // Call Out needs a description
+                detailsPromptTitle.textContent = "Enter Call Out Description";
+                activityType.value = '1'; // Pre-select 1 - Call out
+                activityDesc.required = true;
+                activityDesc.value = '';
+                activityDesc.placeholder = "e.g., Fire at 5th St, Search & Rescue";
+                subcategorySelect.value = ''; // No pre-selection for Call Out
+            }
+            else if (category === 'active' && meta.type == 1) {
+                // Active Call Out can have its description changed
+                detailsPromptTitle.textContent = "Confirm Call Out Description";
+                activityType.value = '1'; // Pre-select 1 - Call out
+                activityDesc.required = true;
+                activityDesc.value = meta.desc;
+                activityDesc.placeholder = "e.g., Fire at 5th St, Search & Rescue";
+                subcategorySelect.value = ''; // No pre-selection for Active Call Out
+            }
+            else if (selectedCardId === 'common_radnet') {
+                // Pre-select Radnet for Rad Net
+                detailsPromptTitle.textContent = `Confirm Kiosk Sign-In: "Radnet"`;
+                activityType.value = '7'; // Pre-select 7 - Other for Rad Net
+                activityDesc.value = 'Radnet'; // Pre-fill with "Radnet"
+                subcategorySelect.value = 'G-Not applicable'; // Pre-select G-Not applicable for Rad Net
+            }
+            else if (category === 'iar') {
+                if (meta.is_active_iar) {
+                    // Already active, inherits automatically
+                    detailsPromptTitle.textContent = `Confirm Kiosk Sign-In: "${meta.desc}"`;
+                    activityType.value = meta.type || '';
+                    activityDesc.value = meta.desc || '';
+                } else {
+                    // First person to sign in for this IAR event, prompt for details
+                    detailsPromptTitle.textContent = `Setup IAR Event: "${meta.subject}"`;
+                    activityType.required = true;
+                    activityDesc.required = true;
+                    
+                    // Pre-fill description with IAR event subject
+                    activityType.value = '';
+                    activityDesc.value = meta.subject;
+                    activityDesc.placeholder = "Briefly describe what you are doing";
+                }
+            }
+            else if (category === 'common' || category === 'active') {
+                // Predefined common event or active event (non-callout) - just select subcategory
+                detailsPromptTitle.textContent = `Confirm Kiosk Sign-In: "${meta.desc}"`;
+                activityType.value = meta.type || '';
+                activityDesc.value = meta.desc || '';
+            }
+        }
+
+        // Handle Form Submission
+        signInForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('btnSubmitSignIn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing In...';
+
+            // 1. Volunteer Data
+            let payload = {
+                volunteer_key: volunteerSelect.value,
+                subcategory: document.getElementById('subcategorySelect').value
+            };
+            if (payload.volunteer_key === '__manual__') {
+                payload.manual_name = manualName.value.trim();
+                payload.manual_vnum = manualVNum.value.trim();
+            }
+
+            // 2. Activity Data
+            const selectedRadio = document.querySelector('input[name="activityRadio"]:checked');
+            if (!selectedRadio) {
+                alert("Please select an activity.");
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+                return;
+            }
+
+            const card = document.getElementById(`card_${selectedRadio.value}`);
+            const category = card.dataset.category;
+            const meta = JSON.parse(card.dataset.meta);
+
+            payload.category = category;
+            payload.radio_value = selectedRadio.value;
+
+            if (selectedRadio.value === 'common_callout') {
+                payload.activity_type = '1';
+                payload.description = activityDesc.value.trim();
+            } 
+            else if (category === 'active' && meta.type == 1) {
+                payload.activity_type = '1';
+                payload.description = activityDesc.value.trim();
+                payload.event_key = meta.event_key;
+            }
+            else if (category === 'common' || (category === 'iar' && meta.is_active_iar)) {
+                payload.activity_type = meta.type;
+                payload.description = meta.desc;
+            } 
+            else if (category === 'active') {
+                payload.activity_type = meta.type;
+                payload.description = meta.desc;
+                payload.event_key = meta.event_key;
+            }
+            else if (category === 'custom') {
+                payload.activity_type = activityType.value;
+                payload.description = activityDesc.value.trim();
+            }
+            else if (category === 'iar' && !meta.is_active_iar) {
+                payload.activity_type = activityType.value;
+                payload.description = activityDesc.value.trim();
+                payload.iar_id = meta.iar_id;
+                payload.iar_subject = meta.subject;
+            }
+
+            try {
+                const response = await fetch('/api/kiosk/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    closeModal();
+                    loadActive();
+                } else {
+                    alert("Error: " + (data.error || "Failed to sign in"));
+                }
+            } catch(err) {
+                alert("Network error: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+            }
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadActive();
+        });
+    </script>
+</body>
+</html>
