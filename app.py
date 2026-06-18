@@ -10,6 +10,7 @@ import logging
 import logging_loki
 from dotenv import load_dotenv
 import json
+import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import csv
@@ -53,6 +54,27 @@ if DATA_DIR != os.path.dirname(os.path.abspath(__file__)):
     except Exception as e:
         logger.error(f"Failed to create DATA_DIR {DATA_DIR}: {e}")
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
+SIGNIN_DATA_FILE = os.path.join(DATA_DIR, 'signin_data.json')
+
+# Predefined activity maps for kiosk
+ACTIVITY_LABELS = {
+    1: "Call out",
+    2: "Detail/Event",
+    3: "Meeting",
+    4: "Training",
+    5: "Work Night",
+    7: "Other",
+    8: "Admin"
+}
+
+# Ensure the sign-in data file exists
+if not os.path.exists(SIGNIN_DATA_FILE):
+    try:
+        with open(SIGNIN_DATA_FILE, 'w') as f:
+            json.dump({"active_signins": [], "completed_history": []}, f, indent=4)
+    except Exception as e:
+        logger.error(f"Failed to initialize signin_data.json: {e}")
+
 
 import base64
 
@@ -166,6 +188,91 @@ def save_users(users):
     except Exception as e:
         logger.error(f"Error saving users file: {e}")
         return False
+
+# Helper: Load and Save sign-in data for Kiosk
+def load_signin_data():
+    if os.path.exists(SIGNIN_DATA_FILE):
+        try:
+            with open(SIGNIN_DATA_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading signin_data.json: {e}")
+    return {"active_signins": [], "completed_history": []}
+
+def save_signin_data(data):
+    try:
+        with open(SIGNIN_DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving signin_data.json: {e}")
+
+# Kiosk time helpers
+def get_local_now():
+    return datetime.datetime.now(ZoneInfo("America/Chicago"))
+
+def round_start_time(dt):
+    # Round down to the previous 15-minute mark
+    discard = datetime.timedelta(minutes=dt.minute % 15, seconds=dt.second, microseconds=dt.microsecond)
+    return dt - discard
+
+def round_end_time(dt):
+    # Round up to the next 15-minute mark
+    minutes = dt.minute
+    rem = minutes % 15
+    if rem == 0 and dt.second == 0 and dt.microsecond == 0:
+        return dt
+    add = 15 - rem
+    return dt + datetime.timedelta(minutes=add, seconds=-dt.second, microseconds=-dt.microsecond)
+
+# Kiosk IAR Scraper Cache
+_iar_events_cache = None
+_iar_events_cache_date = None
+
+def fetch_todays_iar_events():
+    agency = os.environ.get('IAM_AGENCY')
+    username = os.environ.get('IAM_USERNAME')
+    password = os.environ.get('IAM_PASSWORD')
+
+    if not all([agency, username, password]):
+        logger.warning("Scrape failed: Missing IamResponding credentials in .env")
+        return False, []
+
+    try:
+        req_session = login_to_iar(agency, username, password)
+
+        # Fetch today's event list (days=1)
+        event_list_url = "https://coordinator.iamresponding.com/api/EventList?days=1"
+        event_list_response = req_session.get(event_list_url, timeout=10)
+        if event_list_response.status_code != 200:
+            logger.error(f"Scrape failed: Event list status code {event_list_response.status_code}")
+            return False, []
+
+        events = event_list_response.json()
+        logger.info(f"Successfully scraped {len(events)} events from IAR for today.")
+        return True, events
+
+    except Exception as e:
+        logger.error(f"Error scraping IAR events: {e}")
+        return False, []
+
+def get_todays_iar_events_cached():
+    global _iar_events_cache, _iar_events_cache_date
+    today_str = get_local_now().date().isoformat()
+    
+    if _iar_events_cache is not None and _iar_events_cache_date == today_str:
+        logger.info(f"Returning cached IAR events for date {today_str} (count: {len(_iar_events_cache)}).")
+        return _iar_events_cache
+
+    success, events = fetch_todays_iar_events()
+    if success:
+        _iar_events_cache = events
+        _iar_events_cache_date = today_str
+        logger.info(f"Cached {len(events)} events for date {today_str}.")
+    else:
+        logger.warning("Failed to fetch IAR events. Returning empty list without caching for the day.")
+    
+    return events
+
 
 SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
 
@@ -471,6 +578,9 @@ def send_password_reset_email(to_email, last_name, victor_number, temp_password)
 
 @app.before_request
 def check_user_active():
+    if request.path.startswith('/kiosk') or request.path.startswith('/api/kiosk'):
+        return
+        
     public_endpoints = ['login', 'forgot_password', 'static', 'logout']
     if not request.endpoint or request.endpoint in public_endpoints:
         return
@@ -2456,6 +2566,323 @@ def get_private_automation_data():
         "event_documents": load_event_documents(),
         "event_links": load_event_links()
     })
+
+# =========================================================================
+# Volunteer Kiosk Routes & APIs
+# =========================================================================
+
+@app.route('/kiosk')
+def kiosk_index():
+    if not session.get('kiosk_authenticated'):
+        return redirect(url_for('kiosk_login'))
+    return render_template('signin.html')
+
+@app.route('/kiosk-login', methods=['GET', 'POST'])
+def kiosk_login():
+    if session.get('kiosk_authenticated'):
+        return redirect(url_for('kiosk_index'))
+
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password')
+        site_password = os.environ.get('SITE_PASSWORD', 'password123')
+        if password == site_password:
+            session.permanent = True
+            session['kiosk_authenticated'] = True
+            logger.info("Kiosk authenticated successfully.")
+            return redirect(url_for('kiosk_index'))
+        else:
+            error = "Invalid password. Please try again."
+            logger.warning("Failed login attempt on volunteer kiosk.")
+
+    return render_template('signin_login.html', error=error)
+
+@app.route('/kiosk-logout')
+def kiosk_logout():
+    session.pop('kiosk_authenticated', None)
+    logger.info("Kiosk locked (logged out).")
+    return redirect(url_for('kiosk_login'))
+
+@app.route('/api/kiosk/active', methods=['GET'])
+def get_active():
+    if not session.get('kiosk_authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = load_signin_data()
+    return jsonify({'active': data.get('active_signins', [])})
+
+@app.route('/api/kiosk/modal-options', methods=['GET'])
+def get_modal_options():
+    if not session.get('kiosk_authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # 1. Active Volunteers
+    users = load_users()
+    volunteers = []
+    for key, val in users.items():
+        if val.get('is_active', True):
+            volunteers.append({
+                'key': key,
+                'first_name': val.get('first_name', ''),
+                'last_name': val.get('last_name', ''),
+                'victor_number': val.get('victor_number', '')
+            })
+    # Sort by last name
+    volunteers.sort(key=lambda x: x['last_name'].lower())
+
+    # 2. Today's IAR Events (using cached version to only load once a day)
+    iar_events = get_todays_iar_events_cached()
+    processed_iar_events = []
+    for e in iar_events:
+        processed_iar_events.append({
+            'id': e.get('id'),
+            'subject': e.get('subject', 'Untitled Event')
+        })
+
+    # 3. Active Events (events currently joined by others)
+    data = load_signin_data()
+    active_signins = data.get('active_signins', [])
+    
+    seen_event_keys = set()
+    active_events = []
+    for s in active_signins:
+        event_key = s.get('event_key')
+        if event_key and event_key not in seen_event_keys:
+            seen_event_keys.add(event_key)
+            active_events.append({
+                'event_key': event_key,
+                'activity_type': s.get('activity_type'),
+                'description': s.get('description')
+            })
+
+    return jsonify({
+        'volunteers': volunteers,
+        'iar_events': processed_iar_events,
+        'active_events': active_events
+    })
+
+@app.route('/api/kiosk/signin', methods=['POST'])
+def sign_in():
+    if not session.get('kiosk_authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    req_data = request.json or {}
+    v_key = req_data.get('volunteer_key')
+    
+    # 1. Identify Volunteer
+    name = ""
+    v_num = ""
+    
+    if v_key == '__manual__':
+        name = req_data.get('manual_name', '').strip()
+        v_num = req_data.get('manual_vnum', '').strip()
+        if not name or not v_num:
+            return jsonify({'error': 'Manual name and Victor Number are required.'}), 400
+    else:
+        users = load_users()
+        user = users.get(v_key)
+        if not user:
+            return jsonify({'error': 'Selected volunteer not found in registry.'}), 400
+        name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+        v_num = user.get('victor_number', '').strip()
+
+    # Verify not already signed in
+    data = load_signin_data()
+    active_signins = data.get('active_signins', [])
+    for active in active_signins:
+        if active.get('victor_number') == v_num:
+            return jsonify({'error': f'{name} is already signed in.'}), 400
+
+    # 2. Activity Identification
+    category = req_data.get('category')
+    activity_type = req_data.get('activity_type')
+    description = req_data.get('description', '').strip()
+    
+    if not activity_type or not description:
+        return jsonify({'error': 'Activity type and description are required.'}), 400
+        
+    try:
+        activity_type = int(activity_type)
+        if activity_type not in ACTIVITY_LABELS:
+            return jsonify({'error': 'Invalid activity type.'}), 400
+    except ValueError:
+        return jsonify({'error': 'Activity type must be an integer.'}), 400
+
+    # Determine unique event key
+    event_key = req_data.get('event_key')
+    if not event_key:
+        if category == 'common':
+            radio_val = req_data.get('radio_value')
+            if radio_val == 'common_callout':
+                # Each Call Out event gets its own unique event key
+                event_key = f"common_callout_{uuid.uuid4()}"
+            else:
+                event_key = radio_val
+        elif category == 'iar':
+            event_key = f"iar_{req_data.get('iar_id')}"
+        else: # custom
+            event_key = f"custom_{uuid.uuid4()}"
+    else:
+        # If selecting an active Call Out but changing the description, treat it as a new/different callout
+        if event_key.startswith('common_callout_'):
+            existing_desc = None
+            for active in active_signins:
+                if active.get('event_key') == event_key:
+                    existing_desc = active.get('description')
+                    break
+            if existing_desc and existing_desc != description:
+                event_key = f"common_callout_{uuid.uuid4()}"
+
+    # 3. Create record
+    signin_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    subcategory = req_data.get('subcategory', 'G-Not applicable')
+    valid_subcategories = [
+        "A- TIME",
+        "B- GSAR",
+        "C - AuxComm",
+        "D- Public Preparedness",
+        "E- EOC",
+        "F- Weather",
+        "G-Not applicable"
+    ]
+    if subcategory not in valid_subcategories:
+        subcategory = "G-Not applicable"
+
+    record = {
+        'id': str(uuid.uuid4()),
+        'volunteer_key': v_key,
+        'name': name,
+        'victor_number': v_num,
+        'activity_type': activity_type,
+        'description': description,
+        'event_key': event_key,
+        'signin_time': signin_time,
+        'subcategory': subcategory
+    }
+
+    active_signins.append(record)
+    data['active_signins'] = active_signins
+    save_signin_data(data)
+
+    logger.info(f"Volunteer {name} ({v_num}) signed in for activity: {description} (Type {activity_type}, Subcategory {subcategory}).")
+    return jsonify({'success': True, 'record': record})
+
+@app.route('/api/kiosk/signout', methods=['POST'])
+def sign_out():
+    if not session.get('kiosk_authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    req_data = request.json or {}
+    record_id = req_data.get('id')
+    if not record_id:
+        return jsonify({'error': 'Missing active record id.'}), 400
+
+    data = load_signin_data()
+    active_signins = data.get('active_signins', [])
+    completed_history = data.get('completed_history', [])
+
+    target_idx = -1
+    for idx, s in enumerate(active_signins):
+        if s.get('id') == record_id:
+            target_idx = idx
+            break
+
+    if target_idx == -1:
+        return jsonify({'error': 'Active sign-in record not found.'}), 404
+
+    record = active_signins.pop(target_idx)
+    
+    # Calculate times in America/Chicago
+    chicago_tz = ZoneInfo("America/Chicago")
+    
+    custom_signin = req_data.get('custom_signin_time')
+    custom_signout = req_data.get('custom_signout_time')
+    
+    if custom_signin and custom_signout:
+        # Parse custom times in America/Chicago timezone
+        rounded_start_dt = datetime.datetime.strptime(custom_signin, '%Y-%m-%d %H:%M:%S').replace(tzinfo=chicago_tz)
+        rounded_end_dt = datetime.datetime.strptime(custom_signout, '%Y-%m-%d %H:%M:%S').replace(tzinfo=chicago_tz)
+        # Convert custom local datetimes to UTC ISO format for the raw fields
+        raw_signin_time = rounded_start_dt.astimezone(datetime.timezone.utc).isoformat()
+        raw_signout_time = rounded_end_dt.astimezone(datetime.timezone.utc).isoformat()
+    else:
+        raw_signin_dt = datetime.datetime.fromisoformat(record['signin_time'].replace('Z', '+00:00'))
+        local_signin_dt = raw_signin_dt.astimezone(chicago_tz)
+        local_signout_dt = datetime.datetime.now(chicago_tz)
+        
+        # Time rounding
+        rounded_start_dt = round_start_time(local_signin_dt)
+        rounded_end_dt = round_end_time(local_signout_dt)
+        
+        raw_signin_time = record['signin_time']
+        raw_signout_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    
+    duration = rounded_end_dt - rounded_start_dt
+    duration_hours = max(0.0, duration.total_seconds() / 3600.0)
+
+    history_record = {
+        'id': record['id'],
+        'volunteer_key': record['volunteer_key'],
+        'name': record['name'],
+        'victor_number': record['victor_number'],
+        'activity_type': record['activity_type'],
+        'description': record['description'],
+        'event_key': record['event_key'],
+        'signin_time': raw_signin_time,
+        'signout_time': raw_signout_time,
+        'rounded_start_time': rounded_start_dt.strftime('%Y-%m-%d %H:%M:%S'),
+        'rounded_end_time': rounded_end_dt.strftime('%Y-%m-%d %H:%M:%S'),
+        'duration_hours': round(duration_hours, 2),
+        'subcategory': record.get('subcategory', 'G-Not applicable')
+    }
+
+    completed_history.append(history_record)
+    
+    data['active_signins'] = active_signins
+    data['completed_history'] = completed_history
+    save_signin_data(data)
+
+    logger.info(f"Volunteer {record['name']} ({record['victor_number']}) signed out. Duration: {history_record['duration_hours']} hours.")
+    return jsonify({'success': True, 'record': history_record})
+
+@app.route('/api/kiosk/adjust-signin', methods=['POST'])
+def adjust_signin():
+    if not session.get('kiosk_authenticated'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    req_data = request.json or {}
+    record_id = req_data.get('id')
+    custom_signin = req_data.get('custom_signin_time')
+
+    if not record_id or not custom_signin:
+        return jsonify({'error': 'Missing active record id or custom signin time.'}), 400
+
+    data = load_signin_data()
+    active_signins = data.get('active_signins', [])
+
+    target_record = None
+    for s in active_signins:
+        if s.get('id') == record_id:
+            target_record = s
+            break
+
+    if not target_record:
+        return jsonify({'error': 'Active sign-in record not found.'}), 404
+
+    # Parse and convert to UTC ISO format
+    chicago_tz = ZoneInfo("America/Chicago")
+    try:
+        local_signin_dt = datetime.datetime.strptime(custom_signin, '%Y-%m-%d %H:%M:%S').replace(tzinfo=chicago_tz)
+        raw_signin_time = local_signin_dt.astimezone(datetime.timezone.utc).isoformat()
+    except Exception as e:
+        return jsonify({'error': f'Invalid date format: {e}'}), 400
+
+    # Update sign-in time
+    target_record['signin_time'] = raw_signin_time
+    save_signin_data(data)
+
+    logger.info(f"Adjusted sign-in time for volunteer {target_record['name']} to: {custom_signin}.")
+    return jsonify({'success': True, 'record': target_record})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

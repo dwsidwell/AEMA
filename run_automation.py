@@ -310,7 +310,7 @@ def format_events_summary(events):
     <body>
     <div class="wrapper">
         <div class="header">
-            <img src="cid:aema_logo" alt="AEMA Logo">
+            <img src="cid:aema_logo" alt="AEMA Logo" height="80">
             <h2>Upcoming Volunteer Events</h2>
             <p style="margin: 10px 0 0 0; color: #bfdbfe; font-size: 14px;">Next {DAYS_TO_PULL_SUMMARY} Days Overview</p>
         </div>
@@ -429,7 +429,7 @@ def format_attendee_reminder(member, events):
     <body>
     <div class="wrapper">
         <div class="header">
-            <img src="cid:aema_logo" alt="AEMA Logo">
+            <img src="cid:aema_logo" alt="AEMA Logo" height="80">
             <h2>Upcoming Volunteer Events</h2>
             <p style="margin: 10px 0 0 0; color: #bfdbfe; font-size: 14px;">Next {DAYS_TO_PULL_REMINDERS} Days Overview</p>
         </div>
