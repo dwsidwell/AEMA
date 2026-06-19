@@ -228,6 +228,9 @@ def round_end_time(dt):
 _iar_events_cache = None
 _iar_events_cache_date = None
 
+# User-specific IAR events cache (key: (user_key, days, is_admin_view), value: {'timestamp': datetime, 'response_data': dict})
+_user_events_cache = {}
+
 def fetch_todays_iar_events():
     agency = os.environ.get('IAM_AGENCY')
     username = os.environ.get('IAM_USERNAME')
@@ -1693,11 +1696,30 @@ def get_events():
         return jsonify({'error': 'Unauthorized. Please login again.'}), 401
 
     data = request.json or {}
-    days = data.get('days', 10)
+    try:
+        days = min(int(data.get('days', 10)), 30)
+    except (ValueError, TypeError):
+        days = 10
 
     users = load_users()
     user_key = session.get('user_key')
     user = users.get(user_key) if user_key else None
+
+    is_admin_view = data.get('is_admin_view', False) and session.get('is_admin', False)
+    bypass_cache = data.get('bypass_cache', False)
+
+    # Check 15-minute cache
+    if user_key and not bypass_cache:
+        cache_key = (user_key, days, is_admin_view)
+        now = datetime.datetime.now()
+        if cache_key in _user_events_cache:
+            cached_entry = _user_events_cache[cache_key]
+            cache_time = cached_entry['timestamp']
+            if (now - cache_time).total_seconds() < 15 * 60:
+                logger.info(f"Returning cached events for user {user_key} (days={days}, admin_view={is_admin_view})")
+                events = cached_entry['response_data'].get('events', [])
+                session['attending_event_ids'] = [str(e.get('id')) for e in events if e.get('user_response') == 1]
+                return jsonify(cached_entry['response_data'])
     
     agency = ""
     username = ""
@@ -1840,11 +1862,22 @@ def get_events():
 
         session['attending_event_ids'] = attending_ids
         settings = load_settings()
-        return jsonify({
+        response_data = {
             'events': detailed_events,
             'urls': urls_called,
             'allow_iar_status_change': settings.get('allow_iar_status_change', True)
-        })
+        }
+
+        # Populate 15-minute cache
+        if user_key:
+            cache_key = (user_key, days, is_admin_view)
+            _user_events_cache[cache_key] = {
+                'timestamp': datetime.datetime.now(),
+                'response_data': response_data
+            }
+            logger.info(f"Cached IAR events for user {user_key} (days={days}, admin_view={is_admin_view})")
+
+        return jsonify(response_data)
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Scrape failed: Network request error - {str(e)}", extra={"tags": {"event_type": "app_telemetry", "action": "scrape_error"}})
@@ -1942,6 +1975,13 @@ def respond_to_event():
         if put_response.status_code not in (200, 204):
             logger.error(f"Failed to update event response on IAR: {put_response.status_code} - {put_response.text}")
             return jsonify({'error': f'Failed to update status on IamResponding: {put_response.status_code}'}), 500
+
+        # Invalidate events cache for this user since their status has changed
+        if user_key:
+            for key in list(_user_events_cache.keys()):
+                if key[0] == user_key:
+                    _user_events_cache.pop(key, None)
+            logger.info(f"Invalidated IAR events cache for user {user_key} due to status update.")
 
         # Step 6: Fetch updated details for this specific event to return to frontend
         detail_response = req_session.get(detail_url, timeout=10)
@@ -2345,6 +2385,9 @@ def get_admin_users():
         profile_copy['is_admin'] = profile_copy.get('is_admin', False)
         profile_copy['weekly_reminder_email'] = profile_copy.get('weekly_reminder_email', True)
         user_list.append(profile_copy)
+    
+    # Sort alphabetically by last name, then first name
+    user_list.sort(key=lambda x: (x.get('last_name', '').lower(), x.get('first_name', '').lower()))
     return jsonify(user_list)
 
 @app.route('/api/admin/users', methods=['POST'])
