@@ -461,7 +461,7 @@
             <div class="flex-row" style="align-items: flex-end;">
                 <div class="form-group" style="margin-bottom: 0; max-width: 200px;">
                     <label for="days">Days to Fetch</label>
-                    <input type="number" id="days" value="10" min="1" max="365" required>
+                    <input type="number" id="days" value="10" min="1" max="30" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <button type="submit" class="btn-primary" id="fetchBtn" style="height: 46px; margin-top: 0; width: 150px;">Fetch Events</button>
@@ -503,19 +503,23 @@
         let lastFetchedEvents = [];
 
         // Load saved days from local storage if any
-        const savedDays = localStorage.getItem('iar_days');
+        let savedDays = localStorage.getItem('iar_days');
         if (savedDays) {
+            if (parseInt(savedDays, 10) > 30) {
+                savedDays = "30";
+                localStorage.setItem('iar_days', "30");
+            }
             daysInput.value = savedDays;
         }
 
         // Automatically fetch events on load
-        fetchEvents(daysInput.value);
+        fetchEvents(daysInput.value, false);
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             const days = daysInput.value;
             localStorage.setItem('iar_days', days);
-            fetchEvents(days);
+            fetchEvents(days, true);
         });
 
         function showStatus(type, message) {
@@ -538,7 +542,7 @@
             statusMessage.style.display = type === 'loading' ? 'flex' : 'block';
         }
 
-        async function fetchEvents(days) {
+        async function fetchEvents(days, bypassCache = false) {
             showStatus('loading', 'Authenticating and fetching events... This may take a moment.');
             resultsContainer.style.display = 'none';
             lastUrls = [];
@@ -548,7 +552,7 @@
                 const response = await fetch('/api/events', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ days })
+                    body: JSON.stringify({ days, bypass_cache: bypassCache })
                 });
 
                 const data = await response.json();
