@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, Response, send_from_directory
+from concurrent.futures import ThreadPoolExecutor
 import re
 import requests
 from bs4 import BeautifulSoup
@@ -1769,7 +1770,7 @@ def get_events():
         is_admin = session.get('is_admin', False)
         is_admin_view = data.get('is_admin_view', False) and is_admin
         
-        for event in events:
+        def fetch_detail(event):
             event_id = event.get('id')
             event_start_str = event.get('eventStart', '')
             
@@ -1781,14 +1782,14 @@ def get_events():
                 central_start_str = event_start_str
 
             if not event_id:
-                continue
-                
+                return None
+
             detail_url = f"https://coordinator.iamresponding.com/api/EventDetail?eventID={event_id}&recurrenceStartDate={central_start_str}"
-            urls_called.append(f"GET {detail_url}")
-            detail_response = req_session.get(detail_url, timeout=10)
+            local_urls = [f"GET {detail_url}"]
             
-            if detail_response.status_code == 200:
-                try:
+            try:
+                detail_response = req_session.get(detail_url, timeout=10)
+                if detail_response.status_code == 200:
                     detail_data = detail_response.json()
                     
                     # Extract the required fields
@@ -1817,15 +1818,13 @@ def get_events():
 
                     # Check documents permission
                     is_attending = check_user_is_attending(current_user, all_attendees)
-                    if is_attending:
-                        attending_ids.append(str(event_id))
                     allowed_docs = []
                     allowed_links = []
                     if is_admin_view or is_attending:
                         allowed_docs = event_docs.get(str(event_id), [])
                         allowed_links = event_links.get(str(event_id), [])
                     
-                    detailed_events.append({
+                    detailed_event = {
                         'id': event_id,
                         'subject': subject,
                         'eventStart': event_start,
@@ -1837,7 +1836,7 @@ def get_events():
                         'links': allowed_links,
                         'user_response': user_response,
                         'recurrence_date': central_start_str
-                    })
+                    }
                     
                     # Business Data Logging
                     logger.info(
@@ -1850,9 +1849,26 @@ def get_events():
                             "iam_attendees_count": str(len(attending))
                         }}
                     )
+                    return detailed_event, is_attending, local_urls
+            except Exception as e:
+                logger.warning(f"Error fetching details for event {event_id}: {e}")
+                
+            return None
+
+        # Fetch event details in parallel with a pool of max 5 workers
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(fetch_detail, event) for event in events]
+            for future in futures:
+                try:
+                    result = future.result()
+                    if result:
+                        detailed_event, is_attending, local_urls = result
+                        detailed_events.append(detailed_event)
+                        urls_called.extend(local_urls)
+                        if is_attending:
+                            attending_ids.append(str(detailed_event['id']))
                 except Exception as e:
-                    # Skip if JSON parsing fails for a specific event
-                    continue
+                    logger.error(f"Error in parallel event fetch: {e}")
 
         # Sort events by start date if it exists
         detailed_events.sort(key=lambda x: x.get('eventStart', ''))
@@ -2702,7 +2718,8 @@ def get_modal_options():
             active_events.append({
                 'event_key': event_key,
                 'activity_type': s.get('activity_type'),
-                'description': s.get('description')
+                'description': s.get('description'),
+                'subcategory': s.get('subcategory', 'Not applicable')
             })
 
     return jsonify({
@@ -2785,18 +2802,18 @@ def sign_in():
 
     # 3. Create record
     signin_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    subcategory = req_data.get('subcategory', 'G-Not applicable')
+    subcategory = req_data.get('subcategory', 'Not applicable')
     valid_subcategories = [
-        "A- TIME",
-        "B- GSAR",
-        "C - AuxComm",
-        "D- Public Preparedness",
-        "E- EOC",
-        "F- Weather",
-        "G-Not applicable"
+        "TIME",
+        "GSAR",
+        "AuxComm",
+        "Public Preparedness",
+        "EOC",
+        "Weather",
+        "Not applicable"
     ]
     if subcategory not in valid_subcategories:
-        subcategory = "G-Not applicable"
+        subcategory = "Not applicable"
 
     record = {
         'id': str(uuid.uuid4()),
@@ -2883,7 +2900,7 @@ def sign_out():
         'rounded_start_time': rounded_start_dt.strftime('%Y-%m-%d %H:%M:%S'),
         'rounded_end_time': rounded_end_dt.strftime('%Y-%m-%d %H:%M:%S'),
         'duration_hours': round(duration_hours, 2),
-        'subcategory': record.get('subcategory', 'G-Not applicable')
+        'subcategory': record.get('subcategory', 'Not applicable')
     }
 
     completed_history.append(history_record)
