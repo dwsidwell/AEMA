@@ -1812,7 +1812,7 @@ def get_events():
                         if user_member_id and m_id == user_member_id:
                             # Use response if it's not None, otherwise default to 0
                             user_response = a.get('response')
-                            if user_response is None:
+                            if user_response is None or user_response in (0, -1):
                                 user_response = 0
                             break
 
@@ -2019,7 +2019,7 @@ def respond_to_event():
                 m_id = str(member.get('memberId') or member.get('memberID') or member.get('id', '')).strip()
                 if user_member_id and m_id == user_member_id:
                     user_response = a.get('response')
-                    if user_response is None:
+                    if user_response is None or user_response in (0, -1):
                         user_response = 0
                     break
             
