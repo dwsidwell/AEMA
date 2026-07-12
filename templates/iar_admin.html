@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='ema-icons-favicon.jpg') }}">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin View for IAR Events</title>
@@ -873,6 +875,15 @@ END:VCALENDAR`;
                 const subjectText = document.createElement('strong');
                 subjectText.textContent = event.subject || 'No Subject';
                 tdSubject.appendChild(subjectText);
+                
+                const idSpan = document.createElement('span');
+                idSpan.style.fontSize = '0.7rem';
+                idSpan.style.color = 'var(--text-muted)';
+                idSpan.style.marginLeft = '8px';
+                idSpan.style.fontWeight = 'normal';
+                idSpan.textContent = `(ID: ${event.id})`;
+                tdSubject.appendChild(idSpan);
+
                 if (event.description) {
                     const desc = document.createElement('div');
                     desc.style.fontSize = '0.85rem';
