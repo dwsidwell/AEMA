@@ -585,7 +585,7 @@ def check_user_active():
     if request.path.startswith('/kiosk') or request.path.startswith('/api/kiosk'):
         return
         
-    public_endpoints = ['login', 'forgot_password', 'static', 'logout']
+    public_endpoints = ['login', 'forgot_password', 'static', 'logout', 'favicon']
     if not request.endpoint or request.endpoint in public_endpoints:
         return
         
@@ -624,6 +624,11 @@ def log_page_views(response):
             }
         )
     return response
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'assets'),
+                               'ema-icons-favicon.jpg', mimetype='image/jpeg')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
