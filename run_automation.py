@@ -77,9 +77,11 @@ def get_weekly_summary_recipients():
 
 def get_attendee_reminder_cc():
     settings = load_settings()
-    emails_str = settings.get('attendee_reminder_cc_emails', '')
-    if emails_str is not None and emails_str.strip() != '':
-        return [email.strip() for email in emails_str.split(',') if email.strip()]
+    if 'attendee_reminder_cc_emails' in settings:
+        emails_str = settings.get('attendee_reminder_cc_emails', '')
+        if emails_str is not None and emails_str.strip() != '':
+            return [email.strip() for email in emails_str.split(',') if email.strip()]
+        return []
     # Fallback to default
     return ["dwsidwell@gmail.com"]
 
